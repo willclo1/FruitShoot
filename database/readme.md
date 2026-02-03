@@ -111,10 +111,3 @@ docker compose up -d
 ```
 
 ---
-
-## Notes
-
-- Every developer has their own local DB
-- No internet access required
-- Schema/migrations should be managed by the API
-- Password is for development only
