@@ -2,15 +2,6 @@
 
 This folder runs a **local MySQL database** using Docker for development.
 
-Each developer runs their **own database locally**.
-
-No shared DB.  
-No public exposure.  
-No VPN.  
-No router setup.  
-
-Just start Docker and go.
-
 ---
 
 ## Requirements
