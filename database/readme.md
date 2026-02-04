@@ -4,6 +4,12 @@ This folder runs a **local MySQL database** using Docker for development.
 
 ---
 
+## Schema
+
+The current schema has both an images and users table. They store basic elements such as username and passsword.
+The images tables uses a mounted folder to actually store the images. Then the location is saved. This will reduce
+the cost of retreving images by a lot. The mounted folder is under /database/data/images/.
+
 ## Requirements
 
 Install:
@@ -111,3 +117,6 @@ docker compose up -d
 ```
 
 ---
+
+
+
