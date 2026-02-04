@@ -1,20 +1,53 @@
 # FruitShoot – Local Development Database
 
-This folder runs a **local MySQL database** using Docker for development.
+This folder runs a local MySQL database using Docker for development.
 
 ---
 
 ## Schema
 
-The current schema has both an images and users table. They store basic elements such as username and passsword.
-The images tables uses a mounted folder to actually store the images. Then the location is saved. This will reduce
-the cost of retreving images by a lot. The mounted folder is under /database/data/images/.
+### users table
+Stores account information.
+
+Fields:
+- id (auto increment primary key)
+- email (unique)
+- username (unique)
+- password_hash
+- created_at
+
+### images table
+Stores metadata for uploaded images.
+
+Fields:
+- id (auto increment primary key)
+- user_id (foreign key → users.id)
+- description
+- location (filename only, not full path)
+- uploaded_at
+
+### Image storage
+
+Images are not stored in MySQL.
+
+Images are written to disk and only the filename is saved in the database.
+
+Local path:
+```
+database/data/images/
+```
+Server path:
+```
+srv/fruitshoot/images/
+```
+
+---
 
 ## Requirements
 
 Install:
 
-- Docker (Docker Desktop or docker engine + compose plugin)
+- Docker
 
 Verify:
 
@@ -27,19 +60,15 @@ docker compose version
 
 ## Start the database
 
-From this `database/` directory:
+From the `database/` directory:
 
 ```bash
 docker compose up -d
 ```
 
-That’s it. The database is now running.
-
 ---
 
 ## Connection Settings
-
-Use these values in your API:
 
 Host:
 ```
@@ -65,6 +94,8 @@ Database:
 ```
 fruitshoot
 ```
+
+Note: MySQL runs on 3306 inside Docker and is exposed as 3307 on the host.
 
 ---
 
@@ -92,7 +123,7 @@ docker compose down
 
 ---
 
-## Reset database (wipe everything)
+## Reset database
 
 ```bash
 docker compose down -v
@@ -115,8 +146,3 @@ docker logs -f fruitshoot-mysql
 cd database
 docker compose up -d
 ```
-
----
-
-
-
