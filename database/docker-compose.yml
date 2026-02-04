@@ -12,6 +12,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./init:/docker-entrypoint-initdb.d
+      - ./data/images:/data/images
     restart: unless-stopped
 
 volumes:
