@@ -26,6 +26,9 @@ Fields:
 - location (filename only, not full path)
 - uploaded_at
 
+
+To modify the exisiting schema go to /init/schema.sql and modify this file. Then rebuild the docker container.
+
 ### Image storage
 
 Images are not stored in MySQL.
