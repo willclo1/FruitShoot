@@ -1,2 +1,3 @@
 database/data/
 .DS_Store
+backend/venv
