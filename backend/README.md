@@ -1,29 +1,25 @@
-# FastAPI – Minimal Starter
+# FastAPI Backend
 
-This project runs a very simple FastAPI server using:
+Minimal FastAPI server with:
 
-- 1 file (`main.py`)
-- 1 virtual environment (`venv`)
-- uvicorn
+- Python venv
+- .env configuration
+- SQLAlchemy
+- MySQL
 
 ---
 
 ## Requirements
 
 - Python 3.10+
+- MySQL (Docker or remote)
 - pip
-
-Check:
-
-```bash
-python --version
-```
 
 ---
 
 ## Setup
 
-### 1. Create virtual environment
+### Create virtual environment
 
 Mac/Linux:
 ```bash
@@ -37,54 +33,68 @@ python -m venv venv
 
 ---
 
-### 2. Activate virtual environment
+### Activate
 
 Mac/Linux:
 ```bash
 source venv/bin/activate
 ```
 
-Windows (PowerShell):
+Windows:
 ```powershell
 venv\Scripts\Activate.ps1
 ```
 
-You should see:
-```
-(venv)
-```
-
 ---
 
-### 3. Install dependencies
+### Install dependencies
 
 ```bash
-pip install fastapi uvicorn
+pip install -r requirements.txt
 ```
 
----
+## Run server
 
-## Run the server
+From the `backend/` directory.
 
+### Local database
+Mac/Linux:
 ```bash
+ENV=local uvicorn main:app --reload
+```
+
+Windows (PowerShell):
+```powershell
+$env:ENV="local"
 uvicorn main:app --reload
 ```
 
-- API: http://127.0.0.1:8000
+### Remote/server database
+Mac/Linux:
+```bash
+ENV=server uvicorn main:app --reload
+```
+
+Windows (PowerShell):
+```powershell
+$env:ENV="server"
+uvicorn main:app --reload
+```
 
 ---
 
 ## Stop server
 
-Press:
 ```
 CTRL + C
 ```
 
 ---
 
-## Exit virtual environment
+## Exit venv
 
 ```bash
 deactivate
 ```
+
+---
