@@ -11,6 +11,6 @@ app = FastAPI(title="FruitShoot API")
 
 
 @app.get("/")
-def health():
+def home():
     return {"hello world"}
 
