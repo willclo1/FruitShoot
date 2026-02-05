@@ -5,8 +5,8 @@ export default function HomeScreen() {
   const router = useRouter();
 
   const buttons = [
-    { label: "Upload Picture", onPress: () => Alert.alert("Upload Picture go (later)") },
-    { label: "Instructions", onPress: () => Alert.alert("Instructions page coming soon...") },
+    { label: "Upload Picture", onPress: () => router.push("/UploadScreen") },
+    { label: "Instructions", onPress: () => Alert.alert("Instructions coming soon...") },
     { label: "Login", onPress: () => Alert.alert("Login page coming soon...") },
   ];
 
