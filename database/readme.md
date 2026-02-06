@@ -38,12 +38,6 @@ Images are written to disk and only the filename is saved in the database.
 Local path:
 ```
 database/data/images/
-```
-Server path:
-```
-srv/fruitshoot/images/
-```
-
 ---
 
 ## Requirements
