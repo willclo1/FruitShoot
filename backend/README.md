@@ -18,18 +18,6 @@ Works the same locally and on a cloud VM (DigitalOcean).
 - Docker + Docker Compose
 - pip
 
----
-
-# Project Structure
-
-FruitShoot/
-├── backend/                # FastAPI app
-├── database/              # MySQL docker setup
-│   ├── docker-compose.yml
-│   ├── init/              # SQL schema files
-│   └── data/images/       # uploaded images (gitignored)
-├── .env                   # environment config (NOT committed)
-└── requirements.txt
 
 ---
 
