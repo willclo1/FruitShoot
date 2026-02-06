@@ -79,7 +79,7 @@ LOCAL_DB_NAME=fruitshoot
 From backend:
 
 ```bash
-ENV=local uvicorn main:app --reload
+ENV=local uvicorn main:app --reload --reload-dir . --reload-exclude venv
 ```
 
 Open:
