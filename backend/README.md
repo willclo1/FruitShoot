@@ -3,12 +3,8 @@
 FastAPI backend with:
 
 - Python virtual environment
-- MySQL (Docker container)
+- FASTAPI
 - SQLAlchemy
-- Local + server deployment
-- Uploaded images stored on disk
-
-Works the same locally and on a cloud VM (DigitalOcean).
 
 ---
 
