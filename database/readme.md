@@ -35,10 +35,11 @@ Images are not stored in MySQL.
 
 Images are written to disk and only the filename is saved in the database.
 
-Local path:
+Images path:
 ```
 database/data/images/
 ---
+```
 
 ## Requirements
 
