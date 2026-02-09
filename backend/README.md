@@ -89,7 +89,7 @@ http://localhost:8000
 
 ---
 
-# Server Deployment (DigitalOcean / Cloud VM)
+# Server Deployment (Cloud VM)
 
 ## 1. SSH into server
 
