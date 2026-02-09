@@ -1,6 +1,6 @@
 # FruitShoot – Local Development Database
 
-This folder runs a local MySQL database using Docker for development.
+This folder runs a local and server MySQL database using Docker for development.
 
 ---
 
