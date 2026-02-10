@@ -19,9 +19,7 @@ export default function UploadScreen() {
 
   useEffect(() => {
     (async () => {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert(
           "Permission required",
@@ -38,9 +36,7 @@ export default function UploadScreen() {
       quality: 1,
     });
 
-    if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
-    }
+    if (!result.canceled) setImageUri(result.assets[0].uri);
   };
 
   const takePhoto = async () => {
@@ -52,14 +48,11 @@ export default function UploadScreen() {
       quality: 1,
     });
 
-    if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
-    }
+    if (!result.canceled) setImageUri(result.assets[0].uri);
   };
 
   const uploadImage = async () => {
     if (!imageUri) return;
-
     setLoading(true);
 
     // Later: send to backend
@@ -72,11 +65,12 @@ export default function UploadScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Back */}
-      <Pressable onPress={() => router.back()}>
+      <Pressable onPress={() => router.back()} style={styles.backRow}>
         <Text style={styles.backText}>← Back</Text>
       </Pressable>
 
       <Text style={styles.title}>Upload Fruit Image</Text>
+      <Text style={styles.subtitle}>Choose from your library or take a photo.</Text>
 
       {/* Buttons */}
       <View style={styles.buttonRow}>
@@ -94,18 +88,22 @@ export default function UploadScreen() {
         <Image source={{ uri: imageUri }} style={styles.preview} />
       ) : (
         <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>No image selected</Text>
+          <Text style={styles.placeholderTitle}>No image selected</Text>
+          <Text style={styles.placeholderText}>Pick one above to preview it here.</Text>
         </View>
       )}
 
       {/* Upload */}
       <Pressable
-        style={[styles.uploadBtn, !imageUri && { opacity: 0.4 }]}
+        style={[
+          styles.uploadBtn,
+          (!imageUri || loading) && styles.uploadBtnDisabled,
+        ]}
         onPress={uploadImage}
         disabled={!imageUri || loading}
       >
         {loading ? (
-          <ActivityIndicator color="#FAF7F2" />
+          <ActivityIndicator color="#fff" />
         ) : (
           <Text style={styles.uploadText}>Upload</Text>
         )}
@@ -119,20 +117,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "#0E1D1B",
+    backgroundColor: "#fff",
+  },
+
+  backRow: {
+    alignSelf: "flex-start",
+    paddingVertical: 8,
   },
 
   backText: {
-    color: "#B9C0BE",
+    color: "#1F4C47",
     fontSize: 16,
-    marginBottom: 10,
+    fontWeight: "600",
   },
 
   title: {
-    color: "#FAF7F2",
+    color: "#0F1F1D",
     fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 20,
+    fontWeight: "800",
+    marginTop: 6,
+  },
+
+  subtitle: {
+    color: "#465251",
+    marginTop: 6,
+    marginBottom: 16,
+    fontSize: 14,
   },
 
   buttonRow: {
@@ -151,8 +161,8 @@ const styles = StyleSheet.create({
   },
 
   secondaryText: {
-    color: "#FAF7F2",
-    fontWeight: "600",
+    color: "#fff",
+    fontWeight: "700",
   },
 
   /* Image */
@@ -168,27 +178,41 @@ const styles = StyleSheet.create({
     height: 320,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#B9C0BE",
+    borderColor: "#D6DDDB",
+    backgroundColor: "#F7F9F8",
     justifyContent: "center",
     alignItems: "center",
     marginVertical: 18,
+    paddingHorizontal: 16,
+  },
+
+  placeholderTitle: {
+    color: "#0F1F1D",
+    fontWeight: "800",
+    fontSize: 16,
+    marginBottom: 6,
   },
 
   placeholderText: {
-    color: "#B9C0BE",
+    color: "#465251",
+    textAlign: "center",
   },
 
   /* Upload */
   uploadBtn: {
-    backgroundColor: "#E94B3C", 
+    backgroundColor: "#E94B3C",
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
   },
 
+  uploadBtnDisabled: {
+    opacity: 0.45,
+  },
+
   uploadText: {
-    color: "#FAF7F2",
-    fontWeight: "700",
+    color: "#fff",
+    fontWeight: "800",
     fontSize: 16,
   },
 });

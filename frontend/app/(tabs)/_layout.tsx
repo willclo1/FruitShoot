@@ -24,20 +24,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="UploadScreen"
-        options={{
-          title: 'Upload',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="camera.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="ResultsScreen"
         options={{
           title: 'Results',
@@ -56,6 +42,11 @@ export default function TabLayout() {
         options={{
           href: null,
         }}
+      />
+
+      <Tabs.Screen
+        name="UploadScreen"
+        options={{ href: null }}
       />
     </Tabs>
   );
