@@ -4,3 +4,7 @@ backend/venv
 __pycache__/
 *.pyc
 *.pyo
+node_modules/
+.env
+.vscode/
+

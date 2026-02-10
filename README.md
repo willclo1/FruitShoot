@@ -9,6 +9,6 @@ get recommendations on the overall freshness of the fruit.
 
 ## Tech Stack
 
-Frontend: React Native Expo
-Backend: Python
-Database: MySQL
+- Frontend: React Native Expo
+- Backend: Python
+- Database: MySQL

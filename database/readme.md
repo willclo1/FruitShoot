@@ -1,6 +1,6 @@
 # FruitShoot – Local Development Database
 
-This folder runs a local MySQL database using Docker for development.
+This folder runs a local and server MySQL database using Docker for development.
 
 ---
 
@@ -35,16 +35,11 @@ Images are not stored in MySQL.
 
 Images are written to disk and only the filename is saved in the database.
 
-Local path:
+Images path:
 ```
 database/data/images/
-```
-Server path:
-```
-srv/fruitshoot/images/
-```
-
 ---
+```
 
 ## Requirements
 
