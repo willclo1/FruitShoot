@@ -13,6 +13,8 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 
+import { login } from "@/services/login";
+
 export default function LoginScreen() {
   const router = useRouter();
 
@@ -23,16 +25,22 @@ export default function LoginScreen() {
     return email.trim().length > 0 && password.trim().length > 0;
   }, [email, password]);
 
-  const onGetStarted = () => {
-    if (!canSubmit) {
-      Alert.alert("Missing info", "Please enter your email and password.");
-      return;
-    }
+  const onGetStarted = async () => {
+  if (!canSubmit) {
+    Alert.alert("Missing info", "Please enter your email and password.");
+    return;
+  }
 
-    // TODO: Replace with real auth later
-    // Route somewhere after “login”
+  try {
+    const data = await login(email.trim(), password);
+    Alert.alert("Success", data.message);
+
+    // go to tabs after successful login
     router.replace("/(tabs)");
-  };
+  } catch (e: any) {
+    Alert.alert("Login failed", e.message || "Invalid email or password");
+  }
+};
 
   const onForgotPassword = () => {
     Alert.alert("Forgot Password", "Password reset flow coming soon.");

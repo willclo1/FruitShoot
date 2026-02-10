@@ -43,11 +43,6 @@ export default function TabLayout() {
           href: null,
         }}
       />
-
-      <Tabs.Screen
-        name="UploadScreen"
-        options={{ href: null }}
-      />
     </Tabs>
   );
 }
