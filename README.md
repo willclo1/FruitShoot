@@ -27,7 +27,7 @@ docker compose --env-file .env.local up -d --build
 
 Backend API:
 ```
-http://localhost:8000/docs
+http://localhost:8000
 ```
 
 MySQL:
@@ -45,7 +45,7 @@ docker compose --env-file .env.server up -d --build
 
 API:
 ```
-http://SERVER_IP:8000/docs
+http://SERVER_IP:8000
 ```
 
 ## Running the Frontend (Expo)
