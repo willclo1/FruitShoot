@@ -79,12 +79,12 @@ LOCAL_DB_NAME=fruitshoot
 From backend:
 
 ```bash
- ENV=local uvicorn main:app --host 127.0.0.1 --port 8000
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 Open:
 ```
-http://localhost:8000
+http://<your_ip>:8000
 ```
 
 ---
@@ -154,7 +154,7 @@ SERVER_DB_NAME=fruitshoot
 ```bash
 cd backend
 source venv/bin/activate
-ENV=server uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 Notes:
