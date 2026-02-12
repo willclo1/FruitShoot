@@ -8,9 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint",
-    "start:local": "cp .env.local .env && expo start",
-    "start:server": "cp .env.server .env && expo start"
+    "lint": "expo lint"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
