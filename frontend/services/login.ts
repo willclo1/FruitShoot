@@ -1,17 +1,20 @@
-const API_URL = "http://172.20.10.3:8000";
+import * as SecureStore from "expo-secure-store";
+
+const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 export async function login(email: string, password: string) {
   const res = await fetch(`${API_URL}/users/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ email, password }),
   });
 
-  // assuming backend returns 200 ok or 401/400 on fail
-  if (!res.ok) {
-    const msg = await res.text().catch(() => "");
-    throw new Error(msg || "Invalid email or password");
-  }
+  if (!res.ok) throw new Error("Invalid email or password");
 
-  return res.json();
+  const data = await res.json();
+
+  await SecureStore.setItemAsync("access_token", data.access_token);
+  await SecureStore.setItemAsync("refresh_token", data.refresh_token);
+
+  return data;
 }

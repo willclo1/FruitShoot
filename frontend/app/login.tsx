@@ -32,10 +32,7 @@ export default function LoginScreen() {
   }
 
   try {
-    const data = await login(email.trim(), password);
-    Alert.alert("Success", data.message);
-
-    // go to tabs after successful login
+    await login(email.trim(), password);
     router.replace("/(tabs)");
   } catch (e: any) {
     Alert.alert("Login failed", e.message || "Invalid email or password");
@@ -54,7 +51,7 @@ export default function LoginScreen() {
       >
         <View style={styles.container}>
           <Image
-            source={require("../../assets/images/FruitShoot Logo.png")}
+            source={require("../assets/images/FruitShoot Logo.png")}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -90,10 +87,6 @@ export default function LoginScreen() {
           </Pressable>
           </View>
 
-          {/* Optional: back button */}
-          <Pressable onPress={() => router.back()} style={styles.backWrap}>
-            <Text style={styles.backText}>Back</Text>
-          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
