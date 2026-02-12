@@ -1,4 +1,4 @@
-const API_URL = "http://172.20.10.3:8000";
+const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 export async function login(email: string, password: string) {
   const res = await fetch(`${API_URL}/users/login`, {
