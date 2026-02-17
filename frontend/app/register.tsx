@@ -1,4 +1,3 @@
-// app/login.tsx
 import React, { useMemo, useState } from "react";
 import {
   Alert,
@@ -14,38 +13,46 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 
-import { login } from "@/services/login";
+import { register } from "@/services/register";
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const canSubmit = useMemo(() => {
-    return email.trim().length > 0 && password.trim().length > 0;
-  }, [email, password]);
+    return (
+      email.trim().length > 0 &&
+      username.trim().length > 0 &&
+      password.trim().length > 0 &&
+      confirmPassword.trim().length > 0
+    );
+  }, [email, username, password, confirmPassword]);
 
-  const onGetStarted = async () => {
+  const onCreateAccount = async () => {
     if (!canSubmit) {
-      Alert.alert("Missing info", "Please enter your email and password.");
+      Alert.alert("Missing info", "Please fill out all fields.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Passwords don't match", "Please re-enter your password.");
       return;
     }
 
     try {
-      await login(email.trim().toLowerCase(), password);
+      await register(email.trim().toLowerCase(), password, username.trim());
       router.replace("/(tabs)");
     } catch (e: any) {
-      Alert.alert("Login failed", e.message || "Invalid email or password");
+      Alert.alert("Register failed", e.message || "Could not create account");
     }
   };
 
-  const onForgotPassword = () => {
-    Alert.alert("Forgot Password", "Password reset flow coming soon.");
-  };
-
-  const onGoToRegister = () => {
-    router.push("/register");
+  const onBackToLogin = () => {
+    router.replace("/login");
   };
 
   return (
@@ -62,7 +69,7 @@ export default function LoginScreen() {
           />
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Sign in with Email</Text>
+            <Text style={styles.cardTitle}>Create Account</Text>
 
             <TextInput
               value={email}
@@ -75,6 +82,15 @@ export default function LoginScreen() {
             />
 
             <TextInput
+              value={username}
+              onChangeText={setUsername}
+              placeholder="Username"
+              placeholderTextColor="#6F6F6F"
+              autoCapitalize="none"
+              style={styles.input}
+            />
+
+            <TextInput
               value={password}
               onChangeText={setPassword}
               placeholder="Password"
@@ -83,12 +99,17 @@ export default function LoginScreen() {
               style={styles.input}
             />
 
-            <Pressable onPress={onForgotPassword} style={styles.forgotWrap}>
-              <Text style={styles.forgotText}>Forgot Password?</Text>
-            </Pressable>
+            <TextInput
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="Confirm Password"
+              placeholderTextColor="#6F6F6F"
+              secureTextEntry
+              style={styles.input}
+            />
 
             <Pressable
-              onPress={onGetStarted}
+              onPress={onCreateAccount}
               disabled={!canSubmit}
               style={({ pressed }) => [
                 styles.cta,
@@ -96,11 +117,11 @@ export default function LoginScreen() {
                 !canSubmit && styles.ctaDisabled,
               ]}
             >
-              <Text style={styles.ctaText}>Get Started</Text>
+              <Text style={styles.ctaText}>Create Account</Text>
             </Pressable>
 
-            <Pressable onPress={onGoToRegister} style={styles.backWrap}>
-              <Text style={styles.backText}>Create an account</Text>
+            <Pressable onPress={onBackToLogin} style={styles.backWrap}>
+              <Text style={styles.backText}>Back to Sign in</Text>
             </Pressable>
           </View>
         </View>
@@ -127,12 +148,6 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     marginBottom: 10,
-  },
-  brandText: {
-    fontSize: 34,
-    fontWeight: "800",
-    color: BRAND,
-    marginBottom: 18,
   },
 
   card: {
@@ -161,16 +176,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#111",
     marginBottom: 10,
-  },
-
-  forgotWrap: {
-    alignSelf: "flex-end",
-    marginTop: -2,
-    marginBottom: 12,
-  },
-  forgotText: {
-    fontSize: 12,
-    color: "#333",
   },
 
   cta: {
