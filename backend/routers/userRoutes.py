@@ -27,16 +27,16 @@ class UserRegister(BaseModel):
 class RefreshRequest(BaseModel):
     refresh_token: str
 
-
 @router.post("/register", status_code=201)
 def register_user(user: UserRegister, db: Session = Depends(get_db)):
     existing_email = db.execute(select(User).where(User.email == user.email)).scalar_one_or_none()
     existing_username = db.execute(select(User).where(User.username == user.username)).scalar_one_or_none()
+
     if existing_username:
         raise HTTPException(status_code=400, detail="Username already taken")
     if existing_email:
         raise HTTPException(status_code=400, detail="Email already registered")
-    
+
     password_hash = bcrypt.hashpw(
         user.password.encode("utf-8"),
         bcrypt.gensalt()
@@ -47,7 +47,16 @@ def register_user(user: UserRegister, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return {"message": "User registered successfully", "user_id": new_user.id}
+    access_token = create_access_token(new_user.id)
+    refresh_token = create_refresh_token(new_user.id)
+
+    return {
+        "message": "User registered successfully",
+        "user_id": new_user.id,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
 
 @router.post("/login")
 def login_user(user: UserLogin, db: Session = Depends(get_db)):
