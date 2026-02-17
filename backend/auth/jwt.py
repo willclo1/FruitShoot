@@ -2,9 +2,15 @@ from datetime import datetime, timedelta
 import os
 from jose import jwt
 from jose import jwt, JWTError
+import pathlib
+
+from dotenv import load_dotenv
+dotenv_path = pathlib.Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path)
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
+
 
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
