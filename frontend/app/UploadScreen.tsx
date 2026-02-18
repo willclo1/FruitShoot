@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -14,14 +14,19 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 
 import { uploadUserImage } from "@/services/images";
-import { getMe } from "@/services/me"; // <-- uses tokens to fetch current user
+import { getMe } from "@/services/me";
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export default function UploadScreen() {
   const router = useRouter();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "uploading" | "analyzing">("idle");
+
+  const loading = phase !== "idle";
+  const canUpload = useMemo(() => !!imageUri && !loading, [imageUri, loading]);
 
   useEffect(() => {
     (async () => {
@@ -61,11 +66,11 @@ export default function UploadScreen() {
   };
 
   const uploadImage = async () => {
-    if (!imageUri) return;
+    if (!imageUri || loading) return;
 
-    setLoading(true);
     try {
-      // ✅ Get the current user's id using tokens
+      setPhase("uploading");
+
       const me = await getMe();
       if (!me?.id) throw new Error("Could not determine user. Please log in again.");
 
@@ -74,47 +79,58 @@ export default function UploadScreen() {
         imageUri,
         description: description.trim() || undefined,
       });
-      
+
+      setPhase("analyzing");
 
       const data = await res.json().catch(() => ({}));
-      Alert.alert(
-        "Result",
-        `${data.prediction.prediction} (${(data.prediction.confidence * 100).toFixed(1)}%)`
-      );
       if (!res.ok) throw new Error(data?.detail || "Upload failed");
 
-      Alert.alert("Upload complete!", `Saved as: ${data.filename}`);
+      const minAnalyzeMs = 900;
+      await sleep(minAnalyzeMs);
+
+      const label = data?.prediction?.prediction ?? "Unknown";
+      const conf = typeof data?.prediction?.confidence === "number" ? data.prediction.confidence : 0;
+
+      Alert.alert("Result", `${label} (${(conf * 100).toFixed(1)}%)`);
       setImageUri(null);
       setDescription("");
+      setPhase("idle");
     } catch (e: any) {
+      setPhase("idle");
       Alert.alert("Upload failed", e?.message || "Something went wrong");
-    } finally {
-      setLoading(false);
     }
   };
 
+  const statusText =
+    phase === "uploading"
+      ? "Uploading image..."
+      : phase === "analyzing"
+      ? "Analyzing with AI..."
+      : "";
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Back */}
-      <Pressable onPress={() => router.back()} style={styles.backRow}>
-        <Text style={styles.backText}>← Back</Text>
+      <Pressable
+        onPress={() => router.back()}
+        style={styles.backRow}
+        disabled={loading}
+      >
+        <Text style={[styles.backText, loading && styles.disabledText]}>← Back</Text>
       </Pressable>
 
       <Text style={styles.title}>Upload Fruit Image</Text>
       <Text style={styles.subtitle}>Choose from your library or take a photo.</Text>
 
-      {/* Buttons */}
       <View style={styles.buttonRow}>
-        <Pressable style={styles.secondaryBtn} onPress={pickImage} disabled={loading}>
+        <Pressable style={[styles.secondaryBtn, loading && styles.btnDisabled]} onPress={pickImage} disabled={loading}>
           <Text style={styles.secondaryText}>Library</Text>
         </Pressable>
 
-        <Pressable style={styles.secondaryBtn} onPress={takePhoto} disabled={loading}>
+        <Pressable style={[styles.secondaryBtn, loading && styles.btnDisabled]} onPress={takePhoto} disabled={loading}>
           <Text style={styles.secondaryText}>Camera</Text>
         </Pressable>
       </View>
 
-      {/* Optional description */}
       <TextInput
         value={description}
         onChangeText={setDescription}
@@ -124,7 +140,6 @@ export default function UploadScreen() {
         editable={!loading}
       />
 
-      {/* Preview */}
       {imageUri ? (
         <Image source={{ uri: imageUri }} style={styles.preview} />
       ) : (
@@ -136,17 +151,22 @@ export default function UploadScreen() {
         </View>
       )}
 
-      {/* Upload */}
+      {loading && (
+        <View style={styles.loadingRow}>
+          <ActivityIndicator />
+          <Text style={styles.loadingText}>{statusText}</Text>
+        </View>
+      )}
+
       <Pressable
-        style={[
-          styles.uploadBtn,
-          (!imageUri || loading) && styles.uploadBtnDisabled,
-        ]}
+        style={[styles.uploadBtn, !canUpload && styles.uploadBtnDisabled]}
         onPress={uploadImage}
-        disabled={!imageUri || loading}
+        disabled={!canUpload}
       >
         {loading ? (
-          <ActivityIndicator color="#fff" />
+          <Text style={styles.uploadText}>
+            {phase === "uploading" ? "Uploading..." : "Analyzing..."}
+          </Text>
         ) : (
           <Text style={styles.uploadText}>Upload</Text>
         )}
@@ -160,6 +180,7 @@ const styles = StyleSheet.create({
 
   backRow: { alignSelf: "flex-start", paddingVertical: 8 },
   backText: { color: "#1F4C47", fontSize: 16, fontWeight: "600" },
+  disabledText: { opacity: 0.5 },
 
   title: { color: "#0F1F1D", fontSize: 22, fontWeight: "800", marginTop: 6 },
   subtitle: { color: "#465251", marginTop: 6, marginBottom: 12, fontSize: 14 },
@@ -174,6 +195,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   secondaryText: { color: "#fff", fontWeight: "700" },
+  btnDisabled: { opacity: 0.6 },
 
   input: {
     borderWidth: 1,
@@ -212,6 +234,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   placeholderText: { color: "#465251", textAlign: "center" },
+
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+  },
+  loadingText: { color: "#465251", fontWeight: "700" },
 
   uploadBtn: {
     backgroundColor: "#E94B3C",
