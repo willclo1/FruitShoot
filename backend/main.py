@@ -1,10 +1,7 @@
-from ml.predict import predict_image
 from dotenv import load_dotenv
 load_dotenv()
 
 import os
-from ml.model import get_model
-from ml.predict import predict_image
 import uuid
 import shutil
 from pathlib import Path
@@ -13,29 +10,19 @@ from fastapi import FastAPI, Depends, Form, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-
 from routers import userRoutes
 from models.users import Base, User
 from models.images import UserImage
 from database.connect import engine, get_db
-from ml.download import ensure_model
+
 from ml.model import get_model
+from ml.download import ensure_model
+from ml.predict import predict_image
 
 app = FastAPI(title="FruitShoot API")
 Base.metadata.create_all(bind=engine)
 
-@app.on_event("startup")
-def startup():
-    ensure_model()
-    get_model()
-
 app.include_router(userRoutes.router)
-
-
-
-@app.get("/hello")
-def hello():
-    return {"message": "Hello, FruitShoot!"}
 
 BACKEND_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BACKEND_DIR.parent
@@ -43,6 +30,15 @@ IMAGE_DIR = ROOT_DIR / "database" / "data" / "images"
 IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/uploads", StaticFiles(directory=IMAGE_DIR), name="uploads")
+
+@app.on_event("startup")
+def _startup():
+    ensure_model()
+    get_model()
+
+@app.get("/hello")
+def hello():
+    return {"message": "Hello, FruitShoot!"}
 
 @app.post("/images/upload")
 def upload_image(
@@ -70,6 +66,7 @@ def upload_image(
     db.add(image)
     db.commit()
     db.refresh(image)
+
     model = get_model()
     pred = predict_image(model, str(file_path))
 

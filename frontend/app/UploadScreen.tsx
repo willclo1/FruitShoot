@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,14 +7,20 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 
+import { uploadUserImage } from "@/services/images";
+import { getMe } from "@/services/me"; // <-- uses tokens to fetch current user
+
 export default function UploadScreen() {
   const router = useRouter();
+
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -41,7 +47,10 @@ export default function UploadScreen() {
 
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") return;
+    if (status !== "granted") {
+      Alert.alert("Permission required", "Camera permission is required.");
+      return;
+    }
 
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
@@ -53,13 +62,35 @@ export default function UploadScreen() {
 
   const uploadImage = async () => {
     if (!imageUri) return;
-    setLoading(true);
 
-    // Later: send to backend
-    setTimeout(() => {
+    setLoading(true);
+    try {
+      // ✅ Get the current user's id using tokens
+      const me = await getMe();
+      if (!me?.id) throw new Error("Could not determine user. Please log in again.");
+
+      const res = await uploadUserImage({
+        userId: me.id,
+        imageUri,
+        description: description.trim() || undefined,
+      });
+      
+
+      const data = await res.json().catch(() => ({}));
+      Alert.alert(
+        "Result",
+        `${data.prediction.prediction} (${(data.prediction.confidence * 100).toFixed(1)}%)`
+      );
+      if (!res.ok) throw new Error(data?.detail || "Upload failed");
+
+      Alert.alert("Upload complete!", `Saved as: ${data.filename}`);
+      setImageUri(null);
+      setDescription("");
+    } catch (e: any) {
+      Alert.alert("Upload failed", e?.message || "Something went wrong");
+    } finally {
       setLoading(false);
-      Alert.alert("Upload complete!");
-    }, 800);
+    }
   };
 
   return (
@@ -74,14 +105,24 @@ export default function UploadScreen() {
 
       {/* Buttons */}
       <View style={styles.buttonRow}>
-        <Pressable style={styles.secondaryBtn} onPress={pickImage}>
+        <Pressable style={styles.secondaryBtn} onPress={pickImage} disabled={loading}>
           <Text style={styles.secondaryText}>Library</Text>
         </Pressable>
 
-        <Pressable style={styles.secondaryBtn} onPress={takePhoto}>
+        <Pressable style={styles.secondaryBtn} onPress={takePhoto} disabled={loading}>
           <Text style={styles.secondaryText}>Camera</Text>
         </Pressable>
       </View>
+
+      {/* Optional description */}
+      <TextInput
+        value={description}
+        onChangeText={setDescription}
+        placeholder="Description (optional)"
+        placeholderTextColor="#6B7776"
+        style={styles.input}
+        editable={!loading}
+      />
 
       {/* Preview */}
       {imageUri ? (
@@ -89,7 +130,9 @@ export default function UploadScreen() {
       ) : (
         <View style={styles.placeholder}>
           <Text style={styles.placeholderTitle}>No image selected</Text>
-          <Text style={styles.placeholderText}>Pick one above to preview it here.</Text>
+          <Text style={styles.placeholderText}>
+            Pick one above to preview it here.
+          </Text>
         </View>
       )}
 
@@ -113,45 +156,16 @@ export default function UploadScreen() {
 }
 
 const styles = StyleSheet.create({
-  /* Background */
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#fff",
-  },
+  container: { flex: 1, padding: 20, backgroundColor: "#fff" },
 
-  backRow: {
-    alignSelf: "flex-start",
-    paddingVertical: 8,
-  },
+  backRow: { alignSelf: "flex-start", paddingVertical: 8 },
+  backText: { color: "#1F4C47", fontSize: 16, fontWeight: "600" },
 
-  backText: {
-    color: "#1F4C47",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  title: { color: "#0F1F1D", fontSize: 22, fontWeight: "800", marginTop: 6 },
+  subtitle: { color: "#465251", marginTop: 6, marginBottom: 12, fontSize: 14 },
 
-  title: {
-    color: "#0F1F1D",
-    fontSize: 22,
-    fontWeight: "800",
-    marginTop: 6,
-  },
+  buttonRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
 
-  subtitle: {
-    color: "#465251",
-    marginTop: 6,
-    marginBottom: 16,
-    fontSize: 14,
-  },
-
-  buttonRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 16,
-  },
-
-  /* Secondary buttons */
   secondaryBtn: {
     flex: 1,
     backgroundColor: "#1F4C47",
@@ -159,18 +173,24 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
+  secondaryText: { color: "#fff", fontWeight: "700" },
 
-  secondaryText: {
-    color: "#fff",
-    fontWeight: "700",
+  input: {
+    borderWidth: 1,
+    borderColor: "#D6DDDB",
+    backgroundColor: "#F7F9F8",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: "#0F1F1D",
+    marginBottom: 10,
   },
 
-  /* Image */
   preview: {
     width: "100%",
     height: 320,
     borderRadius: 14,
-    marginVertical: 18,
+    marginVertical: 14,
   },
 
   placeholder: {
@@ -182,37 +202,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#F7F9F8",
     justifyContent: "center",
     alignItems: "center",
-    marginVertical: 18,
+    marginVertical: 14,
     paddingHorizontal: 16,
   },
-
   placeholderTitle: {
     color: "#0F1F1D",
     fontWeight: "800",
     fontSize: 16,
     marginBottom: 6,
   },
+  placeholderText: { color: "#465251", textAlign: "center" },
 
-  placeholderText: {
-    color: "#465251",
-    textAlign: "center",
-  },
-
-  /* Upload */
   uploadBtn: {
     backgroundColor: "#E94B3C",
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
   },
+  uploadBtnDisabled: { opacity: 0.45 },
 
-  uploadBtnDisabled: {
-    opacity: 0.45,
-  },
-
-  uploadText: {
-    color: "#fff",
-    fontWeight: "800",
-    fontSize: 16,
-  },
+  uploadText: { color: "#fff", fontWeight: "800", fontSize: 16 },
 });
