@@ -10,3 +10,7 @@ node_modules/
 .vscode/
 .venv/
 
+backend/ml/weights/
+*.pth
+*.pt
+*.onnx

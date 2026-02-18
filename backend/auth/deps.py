@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from backend.auth.jwt import SECRET_KEY, ALGORITHM
+from auth.jwt import SECRET_KEY, ALGORITHM
 from jose import jwt, JWTError
 
 
