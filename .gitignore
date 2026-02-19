@@ -5,7 +5,10 @@ __pycache__/
 *.pyc
 *.pyo
 node_modules/
-.env
-.env.local
 .vscode/
+.venv/
 
+backend/ml/weights/
+*.pth
+*.pt
+*.onnx
