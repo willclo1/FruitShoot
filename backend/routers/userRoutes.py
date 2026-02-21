@@ -3,12 +3,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 import bcrypt
 from pydantic import BaseModel, EmailStr, Field
-from database.connect import get_db
-from models.users import User
+from ..database.connect import get_db
+from ..models.users import User
 from jose import jwt, JWTError
-from auth.jwt import SECRET_KEY, ALGORITHM
-from auth.deps import get_current_user
-from auth.jwt import create_access_token, create_refresh_token
+from ..auth.jwt import SECRET_KEY, ALGORITHM
+from ..auth.deps import get_current_user
+from ..auth.jwt import create_access_token, create_refresh_token
 
 
 router = APIRouter(prefix="/users", tags=["users"])

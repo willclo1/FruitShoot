@@ -6,6 +6,7 @@ CREATE TABLE users (
   username VARCHAR(50) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  profile_id BIGINT UNSIGNED,
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_email (email),
   UNIQUE KEY uq_users_username (username)
@@ -23,3 +24,9 @@ CREATE TABLE images (
     FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE users
+ADD CONSTRAINT fk_user_images
+FOREIGN KEY (profile_id)
+REFERENCES images(id)
+ON DELETE SET NULL;
