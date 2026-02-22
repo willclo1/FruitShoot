@@ -18,8 +18,6 @@ class User(Base):
         ForeignKey("images.id", ondelete="SET NULL"),
         nullable=True,
     )
-
-    # All images uploaded by this user (uses images.user_id)
     images = relationship(
         "UserImage",
         back_populates="user",
@@ -27,7 +25,6 @@ class User(Base):
         cascade="all, delete-orphan",
     )
 
-    # The selected profile image (uses users.profile_id)
     profile_image = relationship(
         "UserImage",
         foreign_keys=[profile_id],
