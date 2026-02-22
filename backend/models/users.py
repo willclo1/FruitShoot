@@ -12,6 +12,24 @@ class User(Base):
     username = Column(String(50), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
     created_at = Column(TIMESTAMP, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    profile_id = Column(BIGINT(unsigned=True), ForeignKey("UserImage.id"), nullable=True, unique=True)
 
-    image = relationship("UserImage", back_populates="user")
+    profile_id = Column(
+        BIGINT(unsigned=True),
+        ForeignKey("images.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # All images uploaded by this user (uses images.user_id)
+    images = relationship(
+        "UserImage",
+        back_populates="user",
+        foreign_keys="UserImage.user_id",
+        cascade="all, delete-orphan",
+    )
+
+    # The selected profile image (uses users.profile_id)
+    profile_image = relationship(
+        "UserImage",
+        foreign_keys=[profile_id],
+        post_update=True,
+    )
