@@ -10,14 +10,14 @@ from fastapi import FastAPI, Depends, Form, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from .routers import userRoutes
-from .models.users import Base, User
-from .models.images import UserImage
-from .database.connect import engine, get_db
+from routers import userRoutes
+from models.users import Base, User
+from models.images import UserImage
+from database.connect import engine, get_db
 
-from .ml.model import get_model
-from .ml.download import ensure_model
-from .ml.predict import predict_image
+from ml.model import get_model
+from ml.download import ensure_model
+from ml.predict import predict_image
 
 app = FastAPI(title="FruitShoot API")
 Base.metadata.create_all(bind=engine)

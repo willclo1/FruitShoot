@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, TIMESTAMP, text, ForeignKey
 from sqlalchemy.dialects.mysql import BIGINT
 from sqlalchemy.orm import relationship
-from ..models.base import Base
+from models.base import Base
 
 
 class User(Base):
