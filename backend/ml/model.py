@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torchvision import models
 
-LABELS = ["Apple", "Banana", "Strawberry"]
+LABELS = ["Apple", "Banana", "Strawberry", "non-fruit"]
 
 _model = None
 
@@ -19,9 +19,19 @@ def get_model():
     device = torch.device("cpu")
 
     model = models.mobilenet_v3_large(weights=None)
-    model.classifier[3] = nn.Linear(model.classifier[3].in_features, len(LABELS))
+
+    # Replace classifier for 4 classes
+    model.classifier[3] = nn.Linear(
+        model.classifier[3].in_features,
+        len(LABELS)
+    )
 
     state = torch.load(model_path, map_location=device)
+
+    # Handle checkpoint vs raw state_dict
+    if "model_state_dict" in state:
+        state = state["model_state_dict"]
+
     model.load_state_dict(state)
     model.to(device)
     model.eval()
