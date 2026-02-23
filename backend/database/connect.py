@@ -10,7 +10,7 @@ load_dotenv(dotenv_path)
 host = os.getenv("DB_HOST", "127.0.0.1")
 port = os.getenv("DB_PORT", "3307")
 user = os.getenv("DB_USER", "appuser")
-password = os.getenv("DB_PASSWORD", "")
+password = os.getenv("DB_PASSWORD", "fshoot")
 name = os.getenv("DB_NAME", "fruitshoot")
 
 DATABASE_URL = f"mysql+pymysql://{user}:{password}@{host}:{port}/{name}"

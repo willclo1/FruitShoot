@@ -15,9 +15,10 @@ from sqlalchemy.orm import Session
 from pathlib import Path
 import mimetypes
 
-from routers import userRoutes
+from routers import userRoutes, recipeRoutes
 from models.users import Base, User
 from models.images import UserImage
+from models.recipes import Recipe
 from database.connect import engine, get_db
 
 from ml.model import get_model
@@ -28,6 +29,7 @@ app = FastAPI(title="FruitShoot API")
 Base.metadata.create_all(bind=engine)
 
 app.include_router(userRoutes.router)
+app.include_router(recipeRoutes.router)
 
 BACKEND_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BACKEND_DIR.parent
