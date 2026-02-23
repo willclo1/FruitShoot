@@ -15,7 +15,7 @@ Fields:
 - username (unique)
 - password_hash
 - created_at
-- profileID (foreign key → images.id)
+- profile_id (foreign key → images.id, nullable)
 
 ### images table
 Stores metadata for uploaded images.
@@ -27,8 +27,18 @@ Fields:
 - location (filename only, not full path)
 - uploaded_at
 
+### recipes table
+Stores recipes created by users.
 
-To modify the exisiting schema go to /init/schema.sql and modify this file. Then rebuild the docker container.
+Fields:
+- id (auto increment primary key)
+- user_id (foreign key → users.id)
+- title
+- ingredients_description (LONGTEXT)
+- instructions_description (LONGTEXT)
+- created_at
+
+To modify the existing schema go to /init/schema.sql and modify this file. Then rebuild the docker container.
 
 ### Image storage
 
@@ -39,7 +49,6 @@ Images are written to disk and only the filename is saved in the database.
 Images path:
 ```
 database/data/images/
----
 ```
 
 ## Requirements
