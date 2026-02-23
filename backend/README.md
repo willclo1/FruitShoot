@@ -45,7 +45,7 @@ pip install -r requirements.txt
 
 ## 3. Start MySQL
 
-From the database folder:
+From the database folder in the root of the project(/FruitShoot/database):
 
 ```bash
 cd database
@@ -55,22 +55,6 @@ docker compose up -d
 This starts:
 - MySQL on 127.0.0.1:3307
 - Images stored in database/data/images
-
----
-
-## 4. Create local .env
-
-Create `.env` in project root:
-
-```env
-ENV=local
-
-LOCAL_DB_HOST=127.0.0.1
-LOCAL_DB_PORT=3307
-LOCAL_DB_USER=appuser
-LOCAL_DB_PASSWORD=fshoot
-LOCAL_DB_NAME=fruitshoot
-```
 
 ---
 
@@ -127,28 +111,6 @@ docker compose up -d
 
 ---
 
-## 5. Create server .env
-
-In project root:
-
-```bash
-nano .env
-```
-
-Example:
-
-```env
-ENV=server
-
-SERVER_DB_HOST=127.0.0.1
-SERVER_DB_PORT=3307
-SERVER_DB_USER=appuser
-SERVER_DB_PASSWORD=fshoot
-SERVER_DB_NAME=fruitshoot
-```
-
----
-
 ## 6. Run backend
 
 ```bash
@@ -175,7 +137,7 @@ Allow inbound:
 ## 8. Access API
 
 ```
-http://YOUR_SERVER_IP:8000/docs
+http://YOUR_SERVER_IP:8000
 ```
 
 ---
@@ -210,3 +172,5 @@ docker compose down
 
 ---
 
+# Additonal Notes
+- The AI Model will be downloaded from a digital ocean bucket into the ml/weights folder locally.
