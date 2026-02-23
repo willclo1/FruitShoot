@@ -15,6 +15,7 @@ Fields:
 - username (unique)
 - password_hash
 - created_at
+- profileID (foreign key → images.id)
 
 ### images table
 Stores metadata for uploaded images.
