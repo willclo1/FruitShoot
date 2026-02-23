@@ -82,7 +82,6 @@ export default function ProfileScreen() {
           style={styles.brandLogo}
           resizeMode="contain"
         />
-        <Text style={styles.brandText}>FruitShoot</Text>
       </View>
 
 
@@ -152,9 +151,23 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.sectionDivider} />
-      <Text style={styles.sectionTitle}>Accessibility</Text>
-      <View style={styles.sectionDividerTight} />
 
+      <Pressable
+        onPress={() => router.push("/upload-recipe")}
+        style={({ pressed }) => [styles.sectionRow, pressed && styles.linkRowPressed]}
+      >
+        <Text style={styles.sectionTitle}>Upload Recipe</Text>
+        <Text style={styles.linkArrow}>→</Text>
+      </Pressable>
+
+      <View style={styles.sectionDivider} />
+
+      <View style={styles.sectionRow}>
+        <Text style={styles.sectionTitle}>Accessibility</Text>
+        <View />
+      </View>
+      
+      <View style={styles.sectionDividerTight} />
 
       <Pressable onPress={onLogout} style={styles.logoutRow}>
         <Text style={styles.logoutArrow}>→</Text>
@@ -165,9 +178,6 @@ export default function ProfileScreen() {
 );
 }
 
-/**
- * Brand palette (from your doc):  [oai_citation:1‡FruitShoot Brand Color Scheme.docx](sediment://file_000000007a8c71fd8fb1a2a619532e7a)
- */
 const CAMERA_GREEN = "#1F4C47";
 const APPLE_RED = "#E94B3C";
 const LEAF_GREEN = "#7BC96F";
@@ -175,7 +185,7 @@ const LENS_DARK = "#0E1D1B";
 const CREAM = "#FAF7F2";
 const COOL_GRAY = "#B9C0BE";
 
-const PAGE_PAD = 16;
+const PAGE_PAD = 22;
 
 const styles = StyleSheet.create({
   safe: {
@@ -186,18 +196,18 @@ const styles = StyleSheet.create({
   // ⭐ Main page padding (prevents edge clipping)
   page: {
     paddingHorizontal: PAGE_PAD,
-    paddingTop: 6,
-    paddingBottom: 28,
+    paddingTop: 20,
+    paddingBottom: 110,
   },
 
   brandHeader: {
     alignItems: "center",
-    marginTop: 6,
-    marginBottom: 6,
+    marginBottom: 0,
   },
   brandLogo: {
-    width: 70,
-    height: 70,
+    width: 140,
+    height: 140,
+    marginBottom: 6,
   },
   brandText: {
     marginTop: 2,
@@ -313,6 +323,7 @@ const styles = StyleSheet.create({
   // ⭐ Big content card — stays safely inside edges
   bigCard: {
     marginTop: 18,
+    marginBottom: 10,
     borderRadius: 24,
     backgroundColor: CAMERA_GREEN,
     padding: 18,
@@ -338,20 +349,27 @@ const styles = StyleSheet.create({
 
   // ⭐ Section dividers full width (no clipping)
   sectionDivider: {
-    marginTop: 22,
     height: 2,
     backgroundColor: COOL_GRAY,
     marginHorizontal: -PAGE_PAD,
   },
   sectionTitle: {
-    marginTop: 10,
     fontSize: 16,
     fontWeight: "900",
     color: LENS_DARK,
     opacity: 0.8,
   },
+  sectionRow: {
+    paddingVertical: 8,         
+    marginHorizontal: -PAGE_PAD,
+    paddingHorizontal: PAGE_PAD,
+
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
   sectionDividerTight: {
-    marginTop: 8,
     height: 2,
     backgroundColor: COOL_GRAY,
     marginHorizontal: -PAGE_PAD,
@@ -372,7 +390,22 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: APPLE_RED,
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: "900",
+  },
+
+  linkRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  linkRowPressed: {
+    opacity: 0.75,
+  },
+  linkArrow: {
+    color: CAMERA_GREEN,
+    fontSize: 18,
     fontWeight: "900",
   },
 });
