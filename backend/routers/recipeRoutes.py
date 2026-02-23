@@ -4,6 +4,7 @@ from sqlalchemy import select
 from pydantic import BaseModel, Field
 from database.connect import get_db
 from models.recipes import Recipe
+from datetime import datetime
 from auth.deps import get_current_user
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
@@ -21,7 +22,7 @@ class RecipeResponse(BaseModel):
     title: str
     ingredients_description: str
     instructions_description: str
-    created_at: str
+    created_at: datetime
 
     class Config:
         from_attributes = True

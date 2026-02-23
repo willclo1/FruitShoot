@@ -9,7 +9,7 @@ export async function register(email: string, password: string, username: string
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, email, password }),
   });
-
+  
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.detail || "Registration failed");
 
@@ -19,4 +19,5 @@ export async function register(email: string, password: string, username: string
   setAuthed(true);
 
   return data;
+  
 }
