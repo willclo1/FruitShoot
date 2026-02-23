@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import * as ImagePicker from "expo-image-picker";
+import { Ionicons } from "@expo/vector-icons";
 
 import { getMe, type Me } from "@/services/me";
 import { setAuthed } from "@/services/authState";
@@ -24,6 +26,8 @@ export default function ProfileScreen() {
   const [tab, setTab] = useState<TabKey>("uploads");
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const displayName = useMemo(() => {
     if (!me?.username) return "Insert Name Here";
@@ -69,6 +73,79 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const onPickProfilePhoto = async () => {
+  try {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("Permission needed", "Please allow photo library access.");
+      return;
+    }
+
+    // Pick image
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.length) return;
+
+    const asset = result.assets[0];
+
+    setAvatarUri(asset.uri);
+
+    setUploadingAvatar(true);
+
+    const token = await SecureStore.getItemAsync("access_token");
+    if (!token) {
+      Alert.alert("Auth", "Missing access token. Please log in again.");
+      return;
+    }
+
+    const form = new FormData();
+    form.append(
+      "image", 
+      {
+        uri: asset.uri,
+        name: asset.fileName || `avatar-${Date.now()}.jpg`,
+        type: asset.mimeType || "image/jpeg",
+      } as any
+    );
+
+    // TODO: replace with your actual backend URL / service helper
+    // Example:
+    const API_BASE = process.env.EXPO_PUBLIC_API_URL;
+    if (!API_BASE) {
+      Alert.alert("Profile Photo", "Selected photo locally (backend upload URL not configured yet).");
+      return;
+    }
+
+    const res = await fetch(`${API_BASE}/users/me/avatar`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: form,
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || "Upload failed");
+    }
+
+    // If backend returns updated profile / avatar URL, you can parse and store it:
+    // const data = await res.json();
+    // setAvatarUri(data.avatar_url ?? asset.uri);
+
+    Alert.alert("Success", "Profile picture updated.");
+  } catch (e: any) {
+    Alert.alert("Profile Photo", e?.message || "Could not upload profile picture.");
+  } finally {
+    setUploadingAvatar(false);
+  }
+};
+
   return (
   <SafeAreaView style={styles.safe}>
     <ScrollView
@@ -90,11 +167,23 @@ export default function ProfileScreen() {
         <View style={styles.profileUnderline} />
       </View>
 
-
       <View style={styles.identityRow}>
-        <View style={styles.avatarCircle}>
-          <View style={styles.avatarInner} />
-        </View>
+          <Pressable
+            onPress={onPickProfilePhoto}
+            style={({ pressed }) => [styles.avatarCircle, pressed && styles.avatarPressed]}
+          >
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+            ) : (
+              <Ionicons name="person" size={38} color={CREAM} />
+            )}
+
+            {uploadingAvatar && (
+              <View style={styles.avatarLoadingOverlay}>
+                <ActivityIndicator color="#fff" />
+              </View>
+            )}
+          </Pressable>
 
         <View style={styles.identityTextCol}>
           {loading ? (
@@ -106,6 +195,7 @@ export default function ProfileScreen() {
             <>
               <Text style={styles.nameText}>{displayName}</Text>
               <Text style={styles.emailText}>{me?.email || ""}</Text>
+              <Text style={styles.avatarHintText}>Tap avatar to change photo</Text>
             </>
           )}
         </View>
@@ -219,6 +309,7 @@ const styles = StyleSheet.create({
   profileHeaderRow: {
     alignSelf: "flex-start",
     marginTop: 6,
+    marginBottom: 12,
   },
   profileTitle: {
     fontSize: 22,
@@ -236,7 +327,7 @@ const styles = StyleSheet.create({
   identityRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 14,
+    marginTop: 0,
     gap: 14,
   },
 
@@ -247,6 +338,7 @@ const styles = StyleSheet.create({
     backgroundColor: LEAF_GREEN,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
   avatarInner: {
     width: 34,
@@ -258,6 +350,7 @@ const styles = StyleSheet.create({
 
   identityTextCol: {
     flex: 1,
+    minWidth: 0,
   },
   nameText: {
     fontSize: 20,
@@ -275,11 +368,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    flexShrink: 1,
   },
   loadingText: {
     color: LENS_DARK,
     opacity: 0.65,
     fontWeight: "600",
+    flexShrink: 1,
   },
 
   // ⭐ Tabs row — full-width divider without clipping
@@ -407,5 +502,32 @@ const styles = StyleSheet.create({
     color: CAMERA_GREEN,
     fontSize: 18,
     fontWeight: "900",
+  },
+
+  avatarPressed: {
+    opacity: 0.9,
+  },
+
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 38,
+  },
+
+  avatarLoadingOverlay: {
+    position: "absolute",
+    inset: 0,
+    borderRadius: 38,
+    backgroundColor: "rgba(0,0,0,0.25)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  avatarHintText: {
+    marginTop: 6,
+    fontSize: 12,
+    color: LENS_DARK,
+    opacity: 0.6,
+    fontWeight: "600",
   },
 });
