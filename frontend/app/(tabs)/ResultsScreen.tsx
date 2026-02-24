@@ -11,12 +11,14 @@ import {
   ActivityIndicator,
 } from "react-native";
 import Slider from "@react-native-community/slider";
-import { getUserRecipes, type Recipe } from "@/services/recipes";
+import { getUserRecipes, deleteRecipe, type Recipe } from "@/services/recipes";
 
 const BRAND = "#1F4C47";
 const BG = "#F6F3EE";
 const TRACK = "#D9D9D9";
 const THUMB = "#E94B3C";
+const LEAF_GREEN = "#7BC96F";
+const COOL_GRAY = "#B9C0BE";
 
 const RIPENESS_LABELS = ["Unripe", "Ripe", "Overripe", "Spoiled"];
 
@@ -54,6 +56,25 @@ export default function ResultsScreen() {
     };
   }, []);
 
+  const onDeleteRecipe = (recipeId: number, recipeName: string) => {
+    Alert.alert("Delete Recipe", `Are you sure you want to delete "${recipeName}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteRecipe(recipeId);
+            setRecipes((prev) => prev.filter((r) => r.id !== recipeId));
+            Alert.alert("Success", "Recipe deleted.");
+          } catch (e: any) {
+            Alert.alert("Delete Failed", e.message || "Could not delete recipe");
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -81,18 +102,47 @@ export default function ResultsScreen() {
           ) : (
             <View style={styles.cardBody}>
               {recipes.map((recipe) => (
-                <Pressable
-                  key={recipe.id}
-                  onPress={() =>
-                    Alert.alert(recipe.title, recipe.ingredients_description)
-                  }
-                  style={styles.recipeItemSmall}
-                >
-                  <Text style={styles.recipeItemTitle}>{recipe.title}</Text>
-                </Pressable>
+                <View key={recipe.id} style={styles.recipeItemSmallContainer}>
+                  <Pressable
+                    onPress={() =>
+                      Alert.alert(
+                        recipe.title,
+                        `Ingredients:\n${recipe.ingredients_description}\n\nInstructions:\n${recipe.instructions_description}`
+                      )
+                    }
+                    style={styles.recipeItemSmall}
+                  >
+                    <Text style={styles.recipeItemTitle}>{recipe.title}</Text>
+                  </Pressable>
+
+                  <View style={styles.smallActionBtns}>
+                    <Pressable
+                      onPress={() =>
+                        Alert.alert("Edit Recipe", "Edit functionality coming soon")
+                      }
+                      style={({ pressed }) => [
+                        styles.smallActionBtn,
+                        pressed && styles.smallActionBtnPressed,
+                      ]}
+                    >
+                      <Text style={styles.smallActionBtnText}>✎</Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => onDeleteRecipe(recipe.id, recipe.title)}
+                      style={({ pressed }) => [
+                        styles.smallActionBtn,
+                        styles.smallActionBtnDelete,
+                        pressed && styles.smallActionBtnPressed,
+                      ]}
+                    >
+                      <Text style={styles.smallActionBtnTextDelete}>🗑</Text>
+                    </Pressable>
+                  </View>
+                </View>
               ))}
             </View>
-          )}
+          )}}
 
           <Pressable
             onPress={() =>
@@ -191,19 +241,55 @@ const styles = StyleSheet.create({
   },
   cardBody: {
     paddingTop: 10,
-    maxHeight: 120,
+    maxHeight: 180,
+  },
+  recipeItemSmallContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
   },
   recipeItemSmall: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginBottom: 6,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 6,
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(31, 76, 71, 0.08)",
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: LEAF_GREEN,
   },
   recipeItemTitle: {
-    color: "white",
+    color: BRAND,
     fontSize: 14,
     fontWeight: "600",
+  },
+  smallActionBtns: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  smallActionBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: COOL_GRAY,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  smallActionBtnDelete: {
+    borderColor: "#E94B3C",
+  },
+  smallActionBtnPressed: {
+    opacity: 0.7,
+    backgroundColor: "#F0F0F0",
+  },
+  smallActionBtnText: {
+    fontSize: 14,
+    color: BRAND,
+  },
+  smallActionBtnTextDelete: {
+    fontSize: 14,
   },
   cardBigText: {
     color: "white",
