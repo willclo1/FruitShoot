@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Image,
   Pressable,
@@ -8,8 +8,10 @@ import {
   Text,
   View,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import Slider from "@react-native-community/slider";
+import { getUserRecipes, type Recipe } from "@/services/recipes";
 
 const BRAND = "#1F4C47";
 const BG = "#F6F3EE";
@@ -20,8 +22,37 @@ const RIPENESS_LABELS = ["Unripe", "Ripe", "Overripe", "Spoiled"];
 
 export default function ResultsScreen() {
   const [ripeness, setRipeness] = useState(0);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const ripenessLabel = useMemo(() => RIPENESS_LABELS[ripeness], [ripeness]);
+
+  // Load recipes on mount
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        setLoading(true);
+        const data = await getUserRecipes();
+        if (mounted) {
+          setRecipes(data);
+        }
+      } catch (e: any) {
+        if (mounted) {
+          console.error("Failed to load recipes:", e.message);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -39,12 +70,37 @@ export default function ResultsScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Recipes</Text>
 
-          <View style={styles.cardBodyCenter}>
-            <Text style={styles.cardBigText}>No Results</Text>
-          </View>
+          {loading ? (
+            <View style={styles.cardBodyCenter}>
+              <ActivityIndicator color={BRAND} />
+            </View>
+          ) : recipes.length === 0 ? (
+            <View style={styles.cardBodyCenter}>
+              <Text style={styles.cardBigText}>No Recipes</Text>
+            </View>
+          ) : (
+            <View style={styles.cardBody}>
+              {recipes.map((recipe) => (
+                <Pressable
+                  key={recipe.id}
+                  onPress={() =>
+                    Alert.alert(recipe.title, recipe.ingredients_description)
+                  }
+                  style={styles.recipeItemSmall}
+                >
+                  <Text style={styles.recipeItemTitle}>{recipe.title}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
 
           <Pressable
-            onPress={() => Alert.alert("Recipes", "Recipes page coming soon.")}
+            onPress={() =>
+              Alert.alert(
+                "Recipes",
+                `You have ${recipes.length} recipe${recipes.length !== 1 ? "s" : ""}.`
+              )
+            }
             style={styles.seeMoreWrap}
           >
             <Text style={styles.seeMoreText}>See more</Text>
@@ -132,6 +188,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingTop: 10,
+  },
+  cardBody: {
+    paddingTop: 10,
+    maxHeight: 120,
+  },
+  recipeItemSmall: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 6,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 6,
+  },
+  recipeItemTitle: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
   },
   cardBigText: {
     color: "white",

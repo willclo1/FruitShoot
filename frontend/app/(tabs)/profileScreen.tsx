@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { getMe, type Me } from "@/services/me";
 import { setAuthed } from "@/services/authState";
+import { getUserRecipes, type Recipe } from "@/services/recipes";
 
 type TabKey = "uploads" | "saved";
 
@@ -26,6 +27,8 @@ export default function ProfileScreen() {
   const [tab, setTab] = useState<TabKey>("uploads");
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recipesLoading, setRecipesLoading] = useState(false);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -74,6 +77,33 @@ export default function ProfileScreen() {
         }
       } finally {
         if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // ⭐ Load user recipes
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        setRecipesLoading(true);
+        const data = await getUserRecipes();
+        if (mounted) {
+          setRecipes(data);
+        }
+      } catch (e: any) {
+        if (mounted) {
+          console.error("Failed to load recipes:", e.message);
+        }
+      } finally {
+        if (mounted) {
+          setRecipesLoading(false);
+        }
       }
     })();
 
@@ -254,11 +284,32 @@ export default function ProfileScreen() {
           </Text>
 
           <View style={styles.bigCardBody}>
-            <Text style={styles.placeholderText}>
-              {tab === "uploads"
-                ? "Your recent uploads will show here."
-                : "Your saved recipes will show here."}
-            </Text>
+            {recipesLoading ? (
+              <ActivityIndicator color="#FAF7F2" />
+            ) : recipes.length === 0 ? (
+              <Text style={styles.placeholderText}>
+                {tab === "uploads"
+                  ? "Your recent uploads will show here."
+                  : "Your saved recipes will show here."}
+              </Text>
+            ) : (
+              <ScrollView style={styles.recipesList} nestedScrollEnabled>
+                {recipes.map((recipe) => (
+                  <Pressable
+                    key={recipe.id}
+                    onPress={() =>
+                      Alert.alert(recipe.title, recipe.ingredients_description)
+                    }
+                    style={styles.recipeItem}
+                  >
+                    <Text style={styles.recipeTitle}>{recipe.title}</Text>
+                    <Text style={styles.recipeDate}>
+                      {new Date(recipe.created_at).toLocaleDateString()}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
           </View>
         </View>
 
@@ -365,6 +416,17 @@ const styles = StyleSheet.create({
   bigCardBody: { marginTop: 12 },
 
   placeholderText: { color: CREAM, opacity: 0.9, fontWeight: "600" },
+
+  recipesList: { maxHeight: 200 },
+  recipeItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 8,
+  },
+  recipeTitle: { color: CREAM, fontWeight: "700", fontSize: 14 },
+  recipeDate: { color: CREAM, opacity: 0.7, fontSize: 12, marginTop: 4 },
 
   sectionDivider: { height: 2, backgroundColor: COOL_GRAY },
   sectionDividerTight: { height: 2, backgroundColor: COOL_GRAY },
