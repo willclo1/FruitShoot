@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { getMe, type Me } from "@/services/me";
 import { setAuthed } from "@/services/authState";
+import { getUserRecipes, deleteRecipe, type Recipe } from "@/services/recipes";
 
 type TabKey = "uploads" | "saved";
 
@@ -26,6 +27,8 @@ export default function ProfileScreen() {
   const [tab, setTab] = useState<TabKey>("uploads");
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recipesLoading, setRecipesLoading] = useState(false);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -82,6 +85,33 @@ export default function ProfileScreen() {
     };
   }, []);
 
+  // ⭐ Load user recipes
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        setRecipesLoading(true);
+        const data = await getUserRecipes();
+        if (mounted) {
+          setRecipes(data);
+        }
+      } catch (e: any) {
+        if (mounted) {
+          console.error("Failed to load recipes:", e.message);
+        }
+      } finally {
+        if (mounted) {
+          setRecipesLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const onLogout = () => {
     Alert.alert("Logout", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
@@ -93,6 +123,25 @@ export default function ProfileScreen() {
           await SecureStore.deleteItemAsync("refresh_token");
           setAuthed(false);
           router.replace("/login");
+        },
+      },
+    ]);
+  };
+
+  const onDeleteRecipe = (recipeId: number, recipeName: string) => {
+    Alert.alert("Delete Recipe", `Are you sure you want to delete "${recipeName}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteRecipe(recipeId);
+            setRecipes((prev) => prev.filter((r) => r.id !== recipeId));
+            Alert.alert("Success", "Recipe deleted.");
+          } catch (e: any) {
+            Alert.alert("Delete Failed", e.message || "Could not delete recipe");
+          }
         },
       },
     ]);
@@ -254,11 +303,68 @@ export default function ProfileScreen() {
           </Text>
 
           <View style={styles.bigCardBody}>
-            <Text style={styles.placeholderText}>
-              {tab === "uploads"
-                ? "Your recent uploads will show here."
-                : "Your saved recipes will show here."}
-            </Text>
+            {recipesLoading ? (
+              <ActivityIndicator color="#1F4C47" />
+            ) : recipes.length === 0 ? (
+              <Text style={styles.placeholderText}>
+                {tab === "uploads"
+                  ? "Your recent uploads will show here."
+                  : "Your saved recipes will show here."}
+              </Text>
+            ) : (
+              <ScrollView style={styles.recipesList} nestedScrollEnabled>
+                {recipes.map((recipe) => (
+                  <View key={recipe.id} style={styles.recipeItem}>
+                    <View style={styles.recipeHeader}>
+                      <Pressable
+                        style={styles.recipeInfoArea}
+                        onPress={() =>
+                          Alert.alert(
+                            recipe.title,
+                            `Ingredients:\n${recipe.ingredients_description}\n\nInstructions:\n${recipe.instructions_description}`
+                          )
+                        }
+                      >
+                        <Text style={styles.recipeTitle} numberOfLines={1}>
+                          {recipe.title}
+                        </Text>
+                        <Text style={styles.recipeDate}>
+                          {new Date(recipe.created_at).toLocaleDateString()}
+                        </Text>
+                      </Pressable>
+
+                      <View style={styles.recipeActions}>
+                        <Pressable
+                          onPress={() =>
+                            Alert.alert(
+                              "Edit Recipe",
+                              "Edit functionality coming soon"
+                            )
+                          }
+                          style={({ pressed }) => [
+                            styles.actionBtn,
+                            pressed && styles.actionBtnPressed,
+                          ]}
+                        >
+                          <Text style={styles.actionBtnText}>✎</Text>
+                        </Pressable>
+
+                        <Pressable
+                          onPress={() => onDeleteRecipe(recipe.id, recipe.title)}
+                          style={({ pressed }) => [
+                            styles.actionBtn,
+                            styles.actionBtnDelete,
+                            pressed && styles.actionBtnPressed,
+                          ]}
+                        >
+                          <Text style={styles.actionBtnTextDelete}>🗑</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
           </View>
         </View>
 
@@ -356,15 +462,76 @@ const styles = StyleSheet.create({
 
   bigCard: {
     marginTop: 18,
-    borderRadius: 24,
-    backgroundColor: CAMERA_GREEN,
-    padding: 18,
+    borderRadius: 16,
+    backgroundColor: "white",
+    borderWidth: 1.5,
+    borderColor: COOL_GRAY,
+    padding: 16,
     minHeight: 180,
   },
-  bigCardTitle: { color: CREAM, fontWeight: "900", fontSize: 16 },
+  bigCardTitle: { color: CAMERA_GREEN, fontWeight: "900", fontSize: 16 },
   bigCardBody: { marginTop: 12 },
 
-  placeholderText: { color: CREAM, opacity: 0.9, fontWeight: "600" },
+  placeholderText: { color: LENS_DARK, opacity: 0.5, fontWeight: "600", fontSize: 14 },
+
+  recipesList: { maxHeight: 240 },
+  recipeItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    backgroundColor: "rgba(31, 76, 71, 0.05)",
+    borderRadius: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: LEAF_GREEN,
+  },
+  recipeHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 10,
+  },
+  recipeInfoArea: {
+    flex: 1,
+  },
+  recipeTitle: {
+    color: CAMERA_GREEN,
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  recipeDate: {
+    color: LENS_DARK,
+    opacity: 0.6,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  recipeActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  actionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: COOL_GRAY,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionBtnDelete: {
+    borderColor: APPLE_RED,
+  },
+  actionBtnPressed: {
+    opacity: 0.7,
+    backgroundColor: "#F0F0F0",
+  },
+  actionBtnText: {
+    fontSize: 16,
+    color: CAMERA_GREEN,
+  },
+  actionBtnTextDelete: {
+    fontSize: 16,
+  },
 
   sectionDivider: { height: 2, backgroundColor: COOL_GRAY },
   sectionDividerTight: { height: 2, backgroundColor: COOL_GRAY },
