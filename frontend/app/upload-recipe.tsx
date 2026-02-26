@@ -14,28 +14,65 @@ import {
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 
+import { clipFromUrl } from "@/services/clip"; // ✅ NEW
+
 const CAMERA_GREEN = "#1F4C47";
 const CREAM = "#FAF7F2";
 const COOL_GRAY = "#B9C0BE";
 
 export default function UploadRecipeScreen() {
   const router = useRouter();
-
   const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL;
 
+  // NEW: import URL field
+  const [recipeUrl, setRecipeUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+
+  // Manual entry fields
   const [title, setTitle] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [instructions, setInstructions] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const canImport = useMemo(() => {
+    return recipeUrl.trim().length > 0 && !importing && !submitting;
+  }, [recipeUrl, importing, submitting]);
 
   const canSubmit = useMemo(() => {
     return (
       title.trim().length > 0 &&
       ingredients.trim().length > 0 &&
       instructions.trim().length > 0 &&
-      !submitting
+      !submitting &&
+      !importing
     );
-  }, [title, ingredients, instructions, submitting]);
+  }, [title, ingredients, instructions, submitting, importing]);
+
+  const onImport = async () => {
+    const url = recipeUrl.trim();
+    if (!url) {
+      Alert.alert("Import Recipe", "Paste a recipe URL.");
+      return;
+    }
+
+    try {
+      setImporting(true);
+
+      // Calls FastAPI /clip/ (scrape-only, no DB writes)
+      const res = await clipFromUrl({ url, ml_disable: true });
+
+      // Autofill fields
+      setTitle(res.recipe.title || "");
+      setIngredients(res.recipe.ingredients_description || "");
+      setInstructions(res.recipe.instructions_description || "");
+
+      Alert.alert("Import Recipe", "Imported! Review and edit, then submit.");
+    } catch (e: any) {
+      Alert.alert("Import Recipe", e?.message || "Could not import recipe.");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const onSubmit = async () => {
     if (!API_BASE) {
@@ -57,17 +94,12 @@ export default function UploadRecipeScreen() {
     try {
       setSubmitting(true);
 
-      // Matches your backend schema:
-      // RecipeCreate: { title, ingredients_description, instructions_description }
       const payload = {
         title: title.trim(),
         ingredients_description: ingredients.trim(),
         instructions_description: instructions.trim(),
       };
 
-      // Your router is @router.post("/") inside a recipes router
-      // So the final path is whatever you mounted it as (commonly "/recipes")
-      // CHANGE THIS if your prefix is different.
       const res = await fetch(`${API_BASE}/recipes/`, {
         method: "POST",
         headers: {
@@ -107,6 +139,43 @@ export default function UploadRecipeScreen() {
         <Text style={styles.h1}>Upload Recipe</Text>
         <View style={styles.underline} />
 
+        {/* ✅ NEW: Import from URL */}
+        <Text style={styles.sectionTitle}>Import from URL</Text>
+        <Text style={styles.helperText}>Paste a recipe link and we&apos;ll auto-fill the fields below.</Text>
+
+        <TextInput
+          value={recipeUrl}
+          onChangeText={setRecipeUrl}
+          placeholder="https://www.allrecipes.com/recipe/..."
+          placeholderTextColor="#666"
+          style={styles.input}
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!importing && !submitting}
+        />
+
+        <Pressable
+          onPress={onImport}
+          style={({ pressed }) => [
+            styles.importBtn,
+            (!canImport || importing) && styles.primaryBtnDisabled,
+            pressed && styles.pressed,
+          ]}
+          disabled={!canImport || importing || submitting}
+        >
+          {importing ? (
+            <View style={styles.submitRow}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.primaryText}>Importing…</Text>
+            </View>
+          ) : (
+            <Text style={styles.primaryText}>Import</Text>
+          )}
+        </Pressable>
+
+        <View style={styles.divider} />
+
+        {/* Manual Entry */}
         <Text style={styles.label}>Title</Text>
         <TextInput
           value={title}
@@ -114,7 +183,7 @@ export default function UploadRecipeScreen() {
           placeholder="e.g., Banana Bread"
           placeholderTextColor="#666"
           style={styles.input}
-          editable={!submitting}
+          editable={!submitting && !importing}
         />
 
         <Text style={styles.label}>Ingredients</Text>
@@ -125,7 +194,7 @@ export default function UploadRecipeScreen() {
           placeholderTextColor="#666"
           style={[styles.input, styles.multiline]}
           multiline
-          editable={!submitting}
+          editable={!submitting && !importing}
         />
 
         <Text style={styles.label}>Instructions</Text>
@@ -136,14 +205,14 @@ export default function UploadRecipeScreen() {
           placeholderTextColor="#666"
           style={[styles.input, styles.multiline]}
           multiline
-          editable={!submitting}
+          editable={!submitting && !importing}
         />
 
         <View style={styles.btnRow}>
           <Pressable
             onPress={() => router.back()}
             style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-            disabled={submitting}
+            disabled={submitting || importing}
           >
             <Text style={styles.secondaryText}>Cancel</Text>
           </Pressable>
@@ -152,10 +221,10 @@ export default function UploadRecipeScreen() {
             onPress={onSubmit}
             style={({ pressed }) => [
               styles.primaryBtn,
-              (!canSubmit || submitting) && styles.primaryBtnDisabled,
+              (!canSubmit || submitting || importing) && styles.primaryBtnDisabled,
               pressed && styles.pressed,
             ]}
-            disabled={!canSubmit || submitting}
+            disabled={!canSubmit || submitting || importing}
           >
             {submitting ? (
               <View style={styles.submitRow}>
@@ -189,6 +258,11 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
 
+  sectionTitle: { fontSize: 16, fontWeight: "900", color: "#111", marginTop: 2 },
+  helperText: { marginTop: 6, color: "#333", fontSize: 13, lineHeight: 18 },
+
+  divider: { height: 1, backgroundColor: COOL_GRAY, marginVertical: 18, opacity: 0.8 },
+
   label: { marginTop: 12, fontSize: 14, fontWeight: "800", color: "#111" },
   input: {
     marginTop: 8,
@@ -202,6 +276,14 @@ const styles = StyleSheet.create({
     color: "#111",
   },
   multiline: { minHeight: 110, textAlignVertical: "top" },
+
+  importBtn: {
+    marginTop: 12,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: CAMERA_GREEN,
+  },
 
   btnRow: { flexDirection: "row", gap: 12, marginTop: 18 },
 
@@ -223,9 +305,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: CAMERA_GREEN,
   },
-  primaryBtnDisabled: {
-    opacity: 0.6,
-  },
+  primaryBtnDisabled: { opacity: 0.6 },
   primaryText: { color: "white", fontWeight: "900" },
 
   pressed: { opacity: 0.85 },
