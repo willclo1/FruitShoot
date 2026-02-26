@@ -1,4 +1,5 @@
 from auth.deps import get_current_user
+from routers import clipRoutes
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -22,14 +23,24 @@ from models.recipes import Recipe
 from database.connect import engine, get_db
 
 from ml.model import get_model
+from contextlib import asynccontextmanager
+from recipe.clipper import init_browser, shutdown_browser
 from ml.download import ensure_model
 from ml.predict import predict_image
 
-app = FastAPI(title="FruitShoot API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_browser()
+    yield
+    await shutdown_browser()
+
+app = FastAPI(title="FruitShoot API", lifespan=lifespan)
 Base.metadata.create_all(bind=engine)
 
 app.include_router(userRoutes.router)
 app.include_router(recipeRoutes.router)
+app.include_router(clipRoutes.router)
 
 BACKEND_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BACKEND_DIR.parent
@@ -37,6 +48,8 @@ IMAGE_DIR = ROOT_DIR / "database" / "data" / "images"
 IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/uploads", StaticFiles(directory=IMAGE_DIR), name="uploads")
+RECIPE_CLIPPER_JS = Path("static/recipe-clipper.umd.js").read_text(encoding="utf-8")
+
 
 @app.on_event("startup")
 def _startup():
