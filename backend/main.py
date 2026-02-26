@@ -13,7 +13,11 @@ from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pathlib import Path
-import mimetypes
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+
+from routers.clip import router as clip_router
+from recipe.clipper import init_browser, shutdown_browser
 
 from routers import userRoutes, recipeRoutes
 from models.users import Base, User
@@ -25,10 +29,19 @@ from ml.model import get_model
 from ml.download import ensure_model
 from ml.predict import predict_image
 
-app = FastAPI(title="FruitShoot API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_browser()
+    yield
+    await shutdown_browser()
+
+
+app = FastAPI(title="FruitShoot API", lifespan=lifespan)
 Base.metadata.create_all(bind=engine)
 
 app.include_router(userRoutes.router)
+app.include_router(clip_router) 
 app.include_router(recipeRoutes.router)
 
 BACKEND_DIR = Path(__file__).resolve().parent

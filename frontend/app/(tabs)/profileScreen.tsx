@@ -17,7 +17,6 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { getMe, type Me } from "@/services/me";
 import { setAuthed } from "@/services/authState";
-import { getUserRecipes, deleteRecipe, type Recipe } from "@/services/recipes";
 
 type TabKey = "uploads" | "saved";
 
@@ -27,8 +26,6 @@ export default function ProfileScreen() {
   const [tab, setTab] = useState<TabKey>("uploads");
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
-  const [recipesLoading, setRecipesLoading] = useState(false);
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -39,7 +36,7 @@ export default function ProfileScreen() {
     return me.username;
   }, [me?.username]);
 
-  // ⭐ Load profile + avatar on screen open
+  // Load profile + avatar on screen open
   useEffect(() => {
     let mounted = true;
 
@@ -52,58 +49,23 @@ export default function ProfileScreen() {
 
         setMe(data);
 
-        // 🔥 Fetch avatar URL (protected endpoint)
+        // Fetch avatar URL (protected endpoint)
         const token = await SecureStore.getItemAsync("access_token");
 
         if (token && API_BASE) {
           const res = await fetch(`${API_BASE}/me/avatar/url`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
           });
 
           if (res.ok) {
             const avatar = await res.json();
-
-            if (avatar?.url) {
-              // Use PUBLIC uploads path for actual image
-              setAvatarUri(`${API_BASE}${avatar.url}`);
-            }
+            if (avatar?.url) setAvatarUri(`${API_BASE}${avatar.url}`);
           }
         }
       } catch (e: any) {
-        if (mounted) {
-          Alert.alert("Profile", e.message || "Could not load profile");
-        }
+        if (mounted) Alert.alert("Profile", e.message || "Could not load profile");
       } finally {
         if (mounted) setLoading(false);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  // ⭐ Load user recipes
-  useEffect(() => {
-    let mounted = true;
-
-    (async () => {
-      try {
-        setRecipesLoading(true);
-        const data = await getUserRecipes();
-        if (mounted) {
-          setRecipes(data);
-        }
-      } catch (e: any) {
-        if (mounted) {
-          console.error("Failed to load recipes:", e.message);
-        }
-      } finally {
-        if (mounted) {
-          setRecipesLoading(false);
-        }
       }
     })();
 
@@ -128,25 +90,6 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const onDeleteRecipe = (recipeId: number, recipeName: string) => {
-    Alert.alert("Delete Recipe", `Are you sure you want to delete "${recipeName}"?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteRecipe(recipeId);
-            setRecipes((prev) => prev.filter((r) => r.id !== recipeId));
-            Alert.alert("Success", "Recipe deleted.");
-          } catch (e: any) {
-            Alert.alert("Delete Failed", e.message || "Could not delete recipe");
-          }
-        },
-      },
-    ]);
-  };
-
   const onPickProfilePhoto = async () => {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -163,7 +106,6 @@ export default function ProfileScreen() {
       });
 
       if (result.canceled || !result.assets?.length) return;
-
       const asset = result.assets[0];
 
       // Show local preview instantly
@@ -197,9 +139,7 @@ export default function ProfileScreen() {
 
       const res = await fetch(`${API_BASE}/user/profile/upload`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: form,
       });
 
@@ -208,12 +148,8 @@ export default function ProfileScreen() {
         throw new Error(text || "Upload failed");
       }
 
-      // 🔥 Use returned public URL immediately
       const data = await res.json();
-
-      if (data?.url) {
-        setAvatarUri(`${API_BASE}${data.url}?cb=${Date.now()}`);
-      }
+      if (data?.url) setAvatarUri(`${API_BASE}${data.url}?cb=${Date.now()}`);
 
       Alert.alert("Success", "Profile picture updated.");
     } catch (e: any) {
@@ -273,98 +209,35 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Tabs (structure only) */}
         <View style={styles.tabsRow}>
           <Pressable onPress={() => setTab("uploads")} style={styles.tabButton}>
             <Text style={[styles.tabText, tab === "uploads" && styles.tabTextActive]}>
               My uploads
             </Text>
-            {tab === "uploads" ? (
-              <View style={styles.tabUnderline} />
-            ) : (
-              <View style={styles.tabUnderlineHidden} />
-            )}
+            {tab === "uploads" ? <View style={styles.tabUnderline} /> : <View style={styles.tabUnderlineHidden} />}
           </Pressable>
 
           <Pressable onPress={() => setTab("saved")} style={styles.tabButton}>
             <Text style={[styles.tabText, tab === "saved" && styles.tabTextActive]}>
               Saved Recipes
             </Text>
-            {tab === "saved" ? (
-              <View style={styles.tabUnderline} />
-            ) : (
-              <View style={styles.tabUnderlineHidden} />
-            )}
+            {tab === "saved" ? <View style={styles.tabUnderline} /> : <View style={styles.tabUnderlineHidden} />}
           </Pressable>
         </View>
 
+        {/* Big card placeholder (NO recipe rows) */}
         <View style={styles.bigCard}>
           <Text style={styles.bigCardTitle}>
             {tab === "uploads" ? "Uploads/Recipes" : "Saved Recipes"}
           </Text>
 
           <View style={styles.bigCardBody}>
-            {recipesLoading ? (
-              <ActivityIndicator color="#1F4C47" />
-            ) : recipes.length === 0 ? (
-              <Text style={styles.placeholderText}>
-                {tab === "uploads"
-                  ? "Your recent uploads will show here."
-                  : "Your saved recipes will show here."}
-              </Text>
-            ) : (
-              <ScrollView style={styles.recipesList} nestedScrollEnabled>
-                {recipes.map((recipe) => (
-                  <View key={recipe.id} style={styles.recipeItem}>
-                    <View style={styles.recipeHeader}>
-                      <Pressable
-                        style={styles.recipeInfoArea}
-                        onPress={() =>
-                          Alert.alert(
-                            recipe.title,
-                            `Ingredients:\n${recipe.ingredients_description}\n\nInstructions:\n${recipe.instructions_description}`
-                          )
-                        }
-                      >
-                        <Text style={styles.recipeTitle} numberOfLines={1}>
-                          {recipe.title}
-                        </Text>
-                        <Text style={styles.recipeDate}>
-                          {new Date(recipe.created_at).toLocaleDateString()}
-                        </Text>
-                      </Pressable>
-
-                      <View style={styles.recipeActions}>
-                        <Pressable
-                          onPress={() =>
-                            Alert.alert(
-                              "Edit Recipe",
-                              "Edit functionality coming soon"
-                            )
-                          }
-                          style={({ pressed }) => [
-                            styles.actionBtn,
-                            pressed && styles.actionBtnPressed,
-                          ]}
-                        >
-                          <Text style={styles.actionBtnText}>✎</Text>
-                        </Pressable>
-
-                        <Pressable
-                          onPress={() => onDeleteRecipe(recipe.id, recipe.title)}
-                          style={({ pressed }) => [
-                            styles.actionBtn,
-                            styles.actionBtnDelete,
-                            pressed && styles.actionBtnPressed,
-                          ]}
-                        >
-                          <Text style={styles.actionBtnTextDelete}>🗑</Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  </View>
-                ))}
-              </ScrollView>
-            )}
+            <Text style={styles.placeholderText}>
+              {tab === "uploads"
+                ? "Your recent uploads will show here (coming soon)."
+                : "Your saved recipes will show here (coming soon)."}
+            </Text>
           </View>
         </View>
 
@@ -473,65 +346,6 @@ const styles = StyleSheet.create({
   bigCardBody: { marginTop: 12 },
 
   placeholderText: { color: LENS_DARK, opacity: 0.5, fontWeight: "600", fontSize: 14 },
-
-  recipesList: { maxHeight: 240 },
-  recipeItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    marginBottom: 10,
-    backgroundColor: "rgba(31, 76, 71, 0.05)",
-    borderRadius: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: LEAF_GREEN,
-  },
-  recipeHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 10,
-  },
-  recipeInfoArea: {
-    flex: 1,
-  },
-  recipeTitle: {
-    color: CAMERA_GREEN,
-    fontWeight: "700",
-    fontSize: 14,
-  },
-  recipeDate: {
-    color: LENS_DARK,
-    opacity: 0.6,
-    fontSize: 12,
-    marginTop: 4,
-  },
-  recipeActions: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  actionBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: "white",
-    borderWidth: 1,
-    borderColor: COOL_GRAY,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionBtnDelete: {
-    borderColor: APPLE_RED,
-  },
-  actionBtnPressed: {
-    opacity: 0.7,
-    backgroundColor: "#F0F0F0",
-  },
-  actionBtnText: {
-    fontSize: 16,
-    color: CAMERA_GREEN,
-  },
-  actionBtnTextDelete: {
-    fontSize: 16,
-  },
 
   sectionDivider: { height: 2, backgroundColor: COOL_GRAY },
   sectionDividerTight: { height: 2, backgroundColor: COOL_GRAY },
