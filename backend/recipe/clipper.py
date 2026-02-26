@@ -6,10 +6,6 @@ from urllib.parse import urlparse
 
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
-# ---------------------------
-# Security: block unsafe targets
-# ---------------------------
-
 BLOCKED_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0"}
 
 def is_private_ip(hostname: str) -> bool:
