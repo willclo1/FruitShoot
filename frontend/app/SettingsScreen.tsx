@@ -35,7 +35,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.safe}>
       <Pressable onPress={() => router.back()} style={styles.backRow}>
         <Text style={styles.backText}>← Back</Text>
-    </Pressable>
+      </Pressable>
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -61,11 +61,33 @@ export default function SettingsScreen() {
               setSettings((prev) => ({
                 ...prev,
                 ttsEnabled: v,
-                ttsMode: v ? "onDemand" : "off",
+                // ✅ If turning ON: default to onDemand (no auto speech unless user chooses it)
+                // ✅ If turning OFF: keep mode as-is (or force onDemand; either is fine)
+                ttsMode: v ? "onDemand" : prev.ttsMode,
               }))
             }
             fontScale={fontScale}
           />
+
+          <Divider />
+
+          {/* Auto speak toggle (only meaningful if TTS enabled) */}
+          <View style={styles.row}>
+            <Text style={[styles.rowLabel, { fontSize: 16 * fontScale }]}>
+              Auto speak on pages
+            </Text>
+            <Switch
+              value={settings.ttsMode === "auto"}
+              onValueChange={(v) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  // only allow changing when enabled
+                  ttsMode: v ? "auto" : "onDemand",
+                }))
+              }
+              disabled={!settings.ttsEnabled}
+            />
+          </View>
 
           <Divider />
 
@@ -118,7 +140,6 @@ export default function SettingsScreen() {
           <Row
             label="Larger touch targets"
             value={settings.largeTouchTargets}
-
             onChange={(v) =>
               setSettings((prev) => ({ ...prev, largeTouchTargets: v }))
             }
@@ -140,14 +161,17 @@ export default function SettingsScreen() {
           <Row
             label={contrastLabel}
             value={settings.highContrast}
-            onChange={(v) => setSettings((prev) => ({ ...prev, highContrast: v }))}
+            onChange={(v) =>
+              setSettings((prev) => ({ ...prev, highContrast: v }))
+            }
             fontScale={fontScale}
           />
 
           <Divider />
 
           <Text style={[styles.helper, { fontSize: 12 * fontScale }]}>
-            (Dummy setting) This will be used later to increase contrast across the app.
+            (Dummy setting) This will be used later to increase contrast across the
+            app.
           </Text>
         </View>
 
@@ -264,13 +288,13 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     paddingVertical: 20,
     marginLeft: 15,
-    },
+  },
 
-    backText: {
+  backText: {
     color: "#1F4C47",
     fontSize: 16,
     fontWeight: "600",
-    },
+  },
 
   card: {
     backgroundColor: "#1F4C47",
@@ -284,7 +308,11 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
-  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   rowLabel: { color: "white", fontWeight: "700" },
 
   divider: { height: 1, backgroundColor: "#EFE7DE" },
@@ -328,10 +356,10 @@ const styles = StyleSheet.create({
   },
   buttonPressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
   buttonDisabled: {
-  opacity: 1,
-  backgroundColor: "#A7B7B4",  
-  borderWidth: 1,
-  borderColor: "#6E8480",
-},
+    opacity: 1,
+    backgroundColor: "#A7B7B4",
+    borderWidth: 1,
+    borderColor: "#6E8480",
+  },
   buttonText: { color: "white", fontWeight: "800" },
 });

@@ -1,10 +1,18 @@
+// settings.ts
 import * as SecureStore from "expo-secure-store";
 
+export type TtsMode = "onDemand" | "auto";
+
 export type AppSettings = {
+  // Voice guidance master toggle
   ttsEnabled: boolean;
-  ttsMode: "off" | "onDemand" | "auto";
+
+  // Only two modes; "off" is handled by ttsEnabled=false
+  ttsMode: TtsMode;
+
   ttsRate: number;
   ttsPitch: number;
+
   largeText: boolean;
   reduceMotion: boolean;
   largeTouchTargets: boolean;
@@ -14,8 +22,8 @@ export type AppSettings = {
 const KEY = "app_settings_v1";
 
 const DEFAULT_SETTINGS: AppSettings = {
-  ttsEnabled: true,
-  ttsMode: "onDemand",
+  ttsEnabled: false,
+  ttsMode: "auto", // best default for accessibility once enabled
   ttsRate: 1.0,
   ttsPitch: 1.0,
   largeText: false,
@@ -30,7 +38,19 @@ export async function loadSettings(): Promise<AppSettings> {
 
   try {
     const parsed = JSON.parse(raw) as Partial<AppSettings>;
-    return { ...DEFAULT_SETTINGS, ...parsed };
+
+    const coercedMode =
+      parsed.ttsMode === "auto" || parsed.ttsMode === "onDemand"
+        ? parsed.ttsMode
+        : DEFAULT_SETTINGS.ttsMode;
+
+    const merged: AppSettings = {
+      ...DEFAULT_SETTINGS,
+      ...parsed,
+      ttsMode: coercedMode,
+    };
+
+    return merged;
   } catch {
     return DEFAULT_SETTINGS;
   }

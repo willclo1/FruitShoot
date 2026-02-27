@@ -13,39 +13,66 @@ export type SayOptions = {
   onError?: (e: unknown) => void;
 };
 
-const DEFAULTS: Required<Pick<SayOptions, "rate" | "pitch" | "language">> = {
+type Defaults = Required<Pick<SayOptions, "rate" | "pitch" | "language">> & {
+  voice?: string;
+};
+
+const DEFAULTS: Defaults = {
   rate: 1.0,
   pitch: 1.0,
   language: "en-US",
+  voice: undefined,
 };
 
 let mode: TtsMode = "onDemand";
+let defaults: Defaults = { ...DEFAULTS };
+
+function clean(text: string) {
+  return (text ?? "").trim();
+}
+
+function speakInternal(text: string, opts: SayOptions = {}) {
+  const cleaned = clean(text);
+  if (!cleaned) return;
+
+  const interrupt = opts.interrupt ?? true;
+  if (interrupt) Speech.stop();
+
+  Speech.speak(cleaned, {
+    rate: opts.rate ?? defaults.rate,
+    pitch: opts.pitch ?? defaults.pitch,
+    language: opts.language ?? defaults.language,
+    voice: opts.voice ?? defaults.voice,
+    onStart: opts.onStart,
+    onDone: opts.onDone,
+    onError: opts.onError,
+  });
+}
 
 export const tts = {
   setMode(next: TtsMode) {
     mode = next;
+    if (mode === "off") Speech.stop();
   },
   getMode() {
     return mode;
   },
 
+  setDefaults(next: Partial<Defaults>) {
+    defaults = { ...defaults, ...next };
+  },
+  getDefaults() {
+    return { ...defaults };
+  },
+
   say(text: string, opts: SayOptions = {}) {
-    const cleaned = (text ?? "").trim();
-    if (!cleaned) return;
     if (mode === "off") return;
+    speakInternal(text, opts);
+  },
 
-    const interrupt = opts.interrupt ?? true;
-    if (interrupt) Speech.stop();
-
-    Speech.speak(cleaned, {
-      rate: opts.rate ?? DEFAULTS.rate,
-      pitch: opts.pitch ?? DEFAULTS.pitch,
-      language: opts.language ?? DEFAULTS.language,
-      voice: opts.voice || undefined,
-      onStart: opts.onStart,
-      onDone: opts.onDone,
-      onError: opts.onError,
-    });
+  autoSay(text: string, opts: SayOptions = {}) {
+    if (mode !== "auto") return;
+    speakInternal(text, opts);
   },
 
   stop() {
@@ -67,7 +94,9 @@ export const tts = {
   },
 
   sayMany(lines: string[], opts: SayOptions = {}) {
-    const filtered = lines.map((s) => (s ?? "").trim()).filter(Boolean);
+    if (mode === "off") return;
+
+    const filtered = (lines ?? []).map(clean).filter(Boolean);
     if (!filtered.length) return;
 
     const interrupt = opts.interrupt ?? true;
@@ -77,11 +106,12 @@ export const tts = {
     const speakNext = () => {
       const line = filtered[i++];
       if (!line) return;
+
       Speech.speak(line, {
-        rate: opts.rate ?? DEFAULTS.rate,
-        pitch: opts.pitch ?? DEFAULTS.pitch,
-        language: opts.language ?? DEFAULTS.language,
-        voice: opts.voice || undefined,
+        rate: opts.rate ?? defaults.rate,
+        pitch: opts.pitch ?? defaults.pitch,
+        language: opts.language ?? defaults.language,
+        voice: opts.voice ?? defaults.voice,
         onStart: i === 1 ? opts.onStart : undefined,
         onDone: i < filtered.length ? speakNext : opts.onDone,
         onError: opts.onError,
@@ -89,5 +119,10 @@ export const tts = {
     };
 
     speakNext();
+  },
+
+  autoMany(lines: string[], opts: SayOptions = {}) {
+    if (mode !== "auto") return;
+    this.sayMany(lines, opts);
   },
 };
