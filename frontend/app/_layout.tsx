@@ -3,6 +3,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native
 import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { SettingsProvider } from "@/services/settingsContext";
 import { useEffect, useRef, useState } from "react";
 import * as SecureStore from "expo-secure-store";
 import { setAuthed, subscribeAuthed } from "@/services/authState";
@@ -107,10 +108,12 @@ export default function RootLayout() {
     }
   }, [navState?.key, authChecked, hasToken, segments.join("/")]);
 
-  return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+ return (
+  <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+    <SettingsProvider>
       <Stack screenOptions={{ headerShown: false }} />
       <StatusBar style="auto" />
-    </ThemeProvider>
-  );
+    </SettingsProvider>
+  </ThemeProvider>
+);
 }

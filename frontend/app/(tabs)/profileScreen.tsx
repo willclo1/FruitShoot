@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { getMe, type Me } from "@/services/me";
 import { setAuthed } from "@/services/authState";
+import { tts } from "@/services/tts";
 
 type TabKey = "uploads" | "saved";
 
@@ -39,7 +40,7 @@ export default function ProfileScreen() {
   // Load profile + avatar on screen open
   useEffect(() => {
     let mounted = true;
-
+    
     (async () => {
       try {
         setLoading(true);

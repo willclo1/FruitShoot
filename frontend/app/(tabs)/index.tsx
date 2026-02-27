@@ -8,8 +8,10 @@ import {
   Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
+import React, { useEffect } from "react";
 import { setAuthed } from "@/services/authState";
 import * as SecureStore from "expo-secure-store";
+import { tts } from "@/services/tts";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -38,12 +40,24 @@ export default function HomeScreen() {
     },
   ];
 
+  useEffect(() => {
+    tts.setMode("auto");
+    tts.say("Welcome to FruitShoot! Your personal fruit ripeness assistant. To get started, upload a picture of your fruit and we'll analyze its ripeness and suggest recipes. Let's make the most of your produce and reduce food waste together!");
+  }, []);
+
   return (
     <SafeAreaView style={styles.safe}>
 
       <View style={styles.topBar}>
       <Pressable style={styles.signOutButton} onPress={onSignOut}>
         <Text style={styles.signOutText}>Sign Out</Text>
+      </Pressable>
+
+      <Pressable
+        style={styles.settingsButton}
+        onPress={() => router.push("/SettingsScreen")}
+      >
+        <Text style={styles.settingsText}>Settings</Text>
       </Pressable>
     </View>
 
@@ -81,9 +95,23 @@ const styles = StyleSheet.create({
   },
 
   topBar: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    alignItems: "flex-start", // left align
+  paddingHorizontal: 16,
+  paddingTop: 8,
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  },  
+  settingsButton: {
+  backgroundColor: "#193F3A",
+  paddingVertical: 6,
+  paddingHorizontal: 14,
+  borderRadius: 999,
+  },  
+
+  settingsText: {
+    color: "white",
+    fontWeight: "700",
+    fontSize: 13,
   },
 
   content: {
