@@ -10,7 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,11 +18,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { getMe, type Me } from "@/services/me";
 import { setAuthed } from "@/services/authState";
 import { tts } from "@/services/tts";
+import { useSettings } from "@/services/settingsContext";
 
 type TabKey = "uploads" | "saved";
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { settings, loaded } = useSettings();
 
   const [tab, setTab] = useState<TabKey>("uploads");
   const [me, setMe] = useState<Me | null>(null);
@@ -37,10 +39,17 @@ export default function ProfileScreen() {
     return me.username;
   }, [me?.username]);
 
+  // Auto-announce screen on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      tts.autoSay("Profile screen. View your uploads and saved recipes.");
+    }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch])
+  );
+
   // Load profile + avatar on screen open
   useEffect(() => {
     let mounted = true;
-    
+
     (async () => {
       try {
         setLoading(true);
@@ -50,7 +59,6 @@ export default function ProfileScreen() {
 
         setMe(data);
 
-        // Fetch avatar URL (protected endpoint)
         const token = await SecureStore.getItemAsync("access_token");
 
         if (token && API_BASE) {
@@ -75,6 +83,11 @@ export default function ProfileScreen() {
     };
   }, []);
 
+  const onTabChange = (next: TabKey) => {
+    setTab(next);
+    tts.say(next === "uploads" ? "My uploads." : "Saved recipes.");
+  };
+
   const onLogout = () => {
     Alert.alert("Logout", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
@@ -96,8 +109,11 @@ export default function ProfileScreen() {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
         Alert.alert("Permission needed", "Please allow photo library access.");
+        tts.say("Permission needed. Please allow photo library access.");
         return;
       }
+
+      tts.say("Opening photo library.");
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -109,9 +125,9 @@ export default function ProfileScreen() {
       if (result.canceled || !result.assets?.length) return;
       const asset = result.assets[0];
 
-      // Show local preview instantly
       setAvatarUri(asset.uri);
       setUploadingAvatar(true);
+      tts.say("Uploading profile photo. Please wait.");
 
       const token = await SecureStore.getItemAsync("access_token");
       if (!token || !API_BASE) {
@@ -128,7 +144,6 @@ export default function ProfileScreen() {
       const form = new FormData();
       form.append("user_id", String(userId));
       form.append("description", "");
-
       form.append(
         "file",
         {
@@ -152,17 +167,24 @@ export default function ProfileScreen() {
       const data = await res.json();
       if (data?.url) setAvatarUri(`${API_BASE}${data.url}?cb=${Date.now()}`);
 
+      tts.say("Profile picture updated.");
       Alert.alert("Success", "Profile picture updated.");
     } catch (e: any) {
+      tts.say("Could not upload profile picture.");
       Alert.alert("Profile Photo", e?.message || "Could not upload profile picture.");
     } finally {
       setUploadingAvatar(false);
     }
   };
 
+  const showReplay = loaded && settings.ttsEnabled;
+
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.page}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.brandHeader}>
           <Image
             source={require("../../assets/images/FruitShoot Logo.png")}
@@ -172,7 +194,24 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.profileHeaderRow}>
-          <Text style={styles.profileTitle}>Profile</Text>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <Text style={styles.profileTitle}>Profile</Text>
+            {showReplay && (
+              <Pressable
+                style={styles.replayButton}
+                onPress={() =>
+                  tts.say(
+                    `Profile screen. Logged in as ${displayName}. Tap avatar to change your photo.`
+                  )
+                }
+                accessibilityRole="button"
+                accessibilityLabel="Replay voice guidance"
+                accessibilityHint="Repeats the profile screen instructions"
+              >
+                <Text style={styles.replayText}>Replay</Text>
+              </Pressable>
+            )}
+          </View>
           <View style={styles.profileUnderline} />
         </View>
 
@@ -180,6 +219,9 @@ export default function ProfileScreen() {
           <Pressable
             onPress={onPickProfilePhoto}
             style={({ pressed }) => [styles.avatarCircle, pressed && styles.avatarPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Profile photo"
+            accessibilityHint="Tap to change your profile picture"
           >
             {avatarUri ? (
               <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
@@ -210,24 +252,44 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Tabs (structure only) */}
+        {/* Tabs */}
         <View style={styles.tabsRow}>
-          <Pressable onPress={() => setTab("uploads")} style={styles.tabButton}>
+          <Pressable
+            onPress={() => onTabChange("uploads")}
+            style={styles.tabButton}
+            accessibilityRole="tab"
+            accessibilityLabel="My uploads"
+            accessibilityState={{ selected: tab === "uploads" }}
+          >
             <Text style={[styles.tabText, tab === "uploads" && styles.tabTextActive]}>
               My uploads
             </Text>
-            {tab === "uploads" ? <View style={styles.tabUnderline} /> : <View style={styles.tabUnderlineHidden} />}
+            {tab === "uploads" ? (
+              <View style={styles.tabUnderline} />
+            ) : (
+              <View style={styles.tabUnderlineHidden} />
+            )}
           </Pressable>
 
-          <Pressable onPress={() => setTab("saved")} style={styles.tabButton}>
+          <Pressable
+            onPress={() => onTabChange("saved")}
+            style={styles.tabButton}
+            accessibilityRole="tab"
+            accessibilityLabel="Saved recipes"
+            accessibilityState={{ selected: tab === "saved" }}
+          >
             <Text style={[styles.tabText, tab === "saved" && styles.tabTextActive]}>
               Saved Recipes
             </Text>
-            {tab === "saved" ? <View style={styles.tabUnderline} /> : <View style={styles.tabUnderlineHidden} />}
+            {tab === "saved" ? (
+              <View style={styles.tabUnderline} />
+            ) : (
+              <View style={styles.tabUnderlineHidden} />
+            )}
           </Pressable>
         </View>
 
-        {/* Big card placeholder (NO recipe rows) */}
+        {/* Content card */}
         <View style={styles.bigCard}>
           <Text style={styles.bigCardTitle}>
             {tab === "uploads" ? "Uploads/Recipes" : "Saved Recipes"}
@@ -245,8 +307,14 @@ export default function ProfileScreen() {
         <View style={styles.sectionDivider} />
 
         <Pressable
-          onPress={() => router.push("/upload-recipe")}
+          onPress={() => {
+            tts.say("Upload Recipe.");
+            router.push("/upload-recipe");
+          }}
           style={({ pressed }) => [styles.sectionRow, pressed && styles.linkRowPressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Upload Recipe"
+          accessibilityHint="Navigate to the upload recipe screen"
         >
           <Text style={styles.sectionTitle}>Upload Recipe</Text>
           <Text style={styles.linkArrow}>→</Text>
@@ -261,7 +329,13 @@ export default function ProfileScreen() {
 
         <View style={styles.sectionDividerTight} />
 
-        <Pressable onPress={onLogout} style={styles.logoutRow}>
+        <Pressable
+          onPress={onLogout}
+          style={styles.logoutRow}
+          accessibilityRole="button"
+          accessibilityLabel="Logout"
+          accessibilityHint="Signs you out of your account"
+        >
           <Text style={styles.logoutArrow}>→</Text>
           <Text style={styles.logoutText}>Logout</Text>
         </Pressable>
@@ -286,9 +360,17 @@ const styles = StyleSheet.create({
   brandHeader: { alignItems: "center" },
   brandLogo: { width: 140, height: 140, marginBottom: 6 },
 
-  profileHeaderRow: { alignSelf: "flex-start", marginTop: 6, marginBottom: 12 },
+  profileHeaderRow: { alignSelf: "stretch", marginTop: 6, marginBottom: 12 },
   profileTitle: { fontSize: 22, fontWeight: "900", color: CAMERA_GREEN },
   profileUnderline: { height: 2, width: 88, backgroundColor: CAMERA_GREEN, marginTop: 4 },
+
+  replayButton: {
+    backgroundColor: "#3B3B3B",
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+  },
+  replayText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 
   identityRow: { flexDirection: "row", alignItems: "center", gap: 14 },
 

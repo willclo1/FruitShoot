@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 
 import { uploadUserImage } from "@/services/images";
 import { getMe } from "@/services/me";
@@ -34,6 +34,8 @@ export default function UploadScreen() {
   const canUpload = useMemo(() => !!imageUri && !loading, [imageUri, loading]);
 
   const spokeOnThisMount = useRef(false);
+  const isFocused = useRef(false);
+  const pendingAutoSpeak = useRef(false);
 
   const prevEnabled = useRef<boolean | null>(null);
   const prevMode = useRef<"auto" | "onDemand" | null>(null);
@@ -48,12 +50,29 @@ export default function UploadScreen() {
     });
   };
 
-  const autoSay = (text: string) => {
+  const speakUploadIntro = () => {
     if (!loaded) return;
     if (!settings.ttsEnabled) return;
     if (settings.ttsMode !== "auto") return;
-    say(text, true);
+    say("Upload screen. Choose Library or Camera, then press Upload to analyze ripeness.", true);
   };
+
+  // Fire pending auto-speak when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      isFocused.current = true;
+
+      if (pendingAutoSpeak.current) {
+        pendingAutoSpeak.current = false;
+        speakUploadIntro();
+        uploadIntroSpokenThisSession = true;
+      }
+
+      return () => {
+        isFocused.current = false;
+      };
+    }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch])
+  );
 
   useEffect(() => {
     if (!loaded) return;
@@ -69,34 +88,47 @@ export default function UploadScreen() {
 
     if (!enabled) return;
 
+    // TTS was just turned on
     if (wasEnabled === false && enabled === true) {
       say("Voice guidance enabled.", true);
 
       if (mode === "auto") {
-        setTimeout(() => {
-          autoSay(
-            "Upload screen. Choose Library or Camera, then press Upload to analyze ripeness."
-          );
-          uploadIntroSpokenThisSession = true;
-        }, 150);
+        if (isFocused.current) {
+          setTimeout(() => {
+            speakUploadIntro();
+            uploadIntroSpokenThisSession = true;
+          }, 150);
+        } else {
+          pendingAutoSpeak.current = true;
+        }
       }
       return;
     }
 
+    // Mode just switched to auto
     if (wasMode !== "auto" && mode === "auto") {
-      autoSay(
-        "Upload screen. Choose Library or Camera, then press Upload to analyze ripeness."
-      );
-      uploadIntroSpokenThisSession = true;
+      if (isFocused.current) {
+        speakUploadIntro();
+        uploadIntroSpokenThisSession = true;
+      } else {
+        pendingAutoSpeak.current = true;
+      }
       return;
     }
 
+    // Mode switched away from auto — clear pending
+    if (wasMode === "auto" && mode !== "auto") {
+      pendingAutoSpeak.current = false;
+      return;
+    }
+
+    if (mode !== "auto") return;
+
+    // First time landing on this screen this session
     if (!uploadIntroSpokenThisSession && !spokeOnThisMount.current) {
       spokeOnThisMount.current = true;
       uploadIntroSpokenThisSession = true;
-      autoSay(
-        "Upload screen. Choose Library or Camera, then press Upload to analyze ripeness."
-      );
+      speakUploadIntro();
     }
   }, [
     loaded,
@@ -124,84 +156,84 @@ export default function UploadScreen() {
   }, [loaded, settings.ttsEnabled]);
 
   const sayAsync = (text: string) => {
-  return new Promise<void>((resolve) => {
-    if (!loaded || !settings.ttsEnabled) return resolve();
+    return new Promise<void>((resolve) => {
+      if (!loaded || !settings.ttsEnabled) return resolve();
 
-    let done = false;
-    const fallbackMs = 1800;
+      let done = false;
+      const fallbackMs = 1800;
 
-    const timer = setTimeout(() => {
-      if (done) return;
-      done = true;
-      resolve();
-    }, fallbackMs);
-
-    tts.say(text, {
-      interrupt: true,
-      rate: settings.ttsRate,
-      pitch: settings.ttsPitch,
-      onDone: () => {
+      const timer = setTimeout(() => {
         if (done) return;
         done = true;
-        clearTimeout(timer);
         resolve();
-      },
-      onError: () => {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        resolve();
-      },
+      }, fallbackMs);
+
+      tts.say(text, {
+        interrupt: true,
+        rate: settings.ttsRate,
+        pitch: settings.ttsPitch,
+        onDone: () => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve();
+        },
+        onError: () => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve();
+        },
+      });
     });
-  });
-};
+  };
 
-const pickImage = async () => {
-  if (loading) return;
+  const pickImage = async () => {
+    if (loading) return;
 
-  await sayAsync("Opening photo library.");
+    await sayAsync("Opening photo library.");
 
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    quality: 1,
-  });
-
-  if (!result.canceled) {
-    setImageUri(result.assets[0].uri);
-    tts.say("Image selected. Press Upload to analyze.", {
-      interrupt: true,
-      rate: settings.ttsRate,
-      pitch: settings.ttsPitch,
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 1,
     });
-  }
-};
 
-const takePhoto = async () => {
-  if (loading) return;
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+      tts.say("Image selected. Press Upload to analyze.", {
+        interrupt: true,
+        rate: settings.ttsRate,
+        pitch: settings.ttsPitch,
+      });
+    }
+  };
 
-  const { status } = await ImagePicker.requestCameraPermissionsAsync();
-  if (status !== "granted") {
-    Alert.alert("Permission required", "Camera permission is required.");
-    say("Permission needed. Please allow camera access to take a photo.", true);
-    return;
-  }
+  const takePhoto = async () => {
+    if (loading) return;
 
-  if (loaded && settings.ttsEnabled) {
-    say("Opening camera.", true);
-    await sleep(300);
-  }
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission required", "Camera permission is required.");
+      say("Permission needed. Please allow camera access to take a photo.", true);
+      return;
+    }
 
-  const result = await ImagePicker.launchCameraAsync({
-    allowsEditing: true,
-    quality: 1,
-  });
+    if (loaded && settings.ttsEnabled) {
+      say("Opening camera.", true);
+      await sleep(300);
+    }
 
-  if (!result.canceled) {
-    setImageUri(result.assets[0].uri);
-    say("Photo captured. Press Upload to analyze.", true);
-  }
-};
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+      say("Photo captured. Press Upload to analyze.", true);
+    }
+  };
 
   const uploadImage = async () => {
     if (!imageUri || loading) return;

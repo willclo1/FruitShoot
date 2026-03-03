@@ -66,6 +66,8 @@ export default function RegisterScreen() {
             source={require("../assets/images/FruitShoot Logo.png")}
             style={styles.logo}
             resizeMode="contain"
+            accessibilityLabel="FruitShoot logo"
+            accessibilityIgnoresInvertColors
           />
 
           <View style={styles.card}>
@@ -79,6 +81,8 @@ export default function RegisterScreen() {
               autoCapitalize="none"
               keyboardType="email-address"
               style={styles.input}
+              accessibilityLabel="Email"
+              accessibilityHint="Enter your email address"
             />
 
             <TextInput
@@ -88,6 +92,8 @@ export default function RegisterScreen() {
               placeholderTextColor="#6F6F6F"
               autoCapitalize="none"
               style={styles.input}
+              accessibilityLabel="Username"
+              accessibilityHint="Choose a username"
             />
 
             <TextInput
@@ -97,6 +103,8 @@ export default function RegisterScreen() {
               placeholderTextColor="#6F6F6F"
               secureTextEntry
               style={styles.input}
+              accessibilityLabel="Password"
+              accessibilityHint="Enter a password"
             />
 
             <TextInput
@@ -106,6 +114,8 @@ export default function RegisterScreen() {
               placeholderTextColor="#6F6F6F"
               secureTextEntry
               style={styles.input}
+              accessibilityLabel="Confirm password"
+              accessibilityHint="Re-enter your password to confirm"
             />
 
             <Pressable
@@ -116,11 +126,21 @@ export default function RegisterScreen() {
                 pressed && styles.ctaPressed,
                 !canSubmit && styles.ctaDisabled,
               ]}
+              accessibilityRole="button"
+              accessibilityLabel="Create account"
+              accessibilityHint="Submits your details and creates your account"
+              accessibilityState={{ disabled: !canSubmit }}
             >
               <Text style={styles.ctaText}>Create Account</Text>
             </Pressable>
 
-            <Pressable onPress={onBackToLogin} style={styles.backWrap}>
+            <Pressable
+              onPress={onBackToLogin}
+              style={styles.backWrap}
+              accessibilityRole="button"
+              accessibilityLabel="Back to sign in"
+              accessibilityHint="Returns to the login screen"
+            >
               <Text style={styles.backText}>Back to Sign in</Text>
             </Pressable>
           </View>

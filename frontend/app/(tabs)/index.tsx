@@ -8,7 +8,7 @@ import {
   View,
   Alert,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 
 import { setAuthed } from "@/services/authState";
@@ -22,9 +22,10 @@ export default function HomeScreen() {
   const router = useRouter();
   const { settings, loaded } = useSettings();
 
-
   const spokeOnThisMount = useRef(false);
-
+  const isFocused = useRef(false);
+  // Tracks if the user enabled auto mode while away from this screen
+  const pendingAutoSpeak = useRef(false);
 
   const prevEnabled = useRef<boolean | null>(null);
   const prevMode = useRef<"auto" | "onDemand" | null>(null);
@@ -41,13 +42,29 @@ export default function HomeScreen() {
   };
 
   const speakHomeIntro = (interrupt = true) => {
-    // Auto intro only in auto mode
     if (!loaded) return;
     if (!settings.ttsEnabled) return;
     if (settings.ttsMode !== "auto") return;
 
     speak("Home screen. Tap Upload Picture to get started.", interrupt);
   };
+
+  // When the screen comes into focus, fire any pending auto-speak
+  useFocusEffect(
+    React.useCallback(() => {
+      isFocused.current = true;
+
+      if (pendingAutoSpeak.current) {
+        pendingAutoSpeak.current = false;
+        speakHomeIntro(true);
+        homeIntroSpokenThisSession = true;
+      }
+
+      return () => {
+        isFocused.current = false;
+      };
+    }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch])
+  );
 
   useEffect(() => {
     if (!loaded) return;
@@ -61,33 +78,48 @@ export default function HomeScreen() {
     prevEnabled.current = enabled;
     prevMode.current = mode;
 
-
     if (!enabled) return;
 
+    // TTS was just turned on
     if (wasEnabled === false && enabled === true) {
       speak("Voice guidance enabled.", true);
 
-
       if (mode === "auto") {
-
-        setTimeout(() => {
-          speakHomeIntro(true);
-          homeIntroSpokenThisSession = true;
-        }, 150);
+        if (isFocused.current) {
+          setTimeout(() => {
+            speakHomeIntro(true);
+            homeIntroSpokenThisSession = true;
+          }, 150);
+        } else {
+          // Will fire when user navigates back to this screen
+          pendingAutoSpeak.current = true;
+        }
       }
       return;
     }
 
-
+    // Mode just switched to auto
     if (wasMode !== "auto" && mode === "auto") {
-      speakHomeIntro(true);
-      homeIntroSpokenThisSession = true;
+      if (isFocused.current) {
+        // We're already on home — speak now
+        speakHomeIntro(true);
+        homeIntroSpokenThisSession = true;
+      } else {
+        // User is on another screen (e.g. Settings) — queue it for when they return
+        pendingAutoSpeak.current = true;
+      }
       return;
     }
 
+    // Mode just switched away from auto — clear any pending speak
+    if (wasMode === "auto" && mode !== "auto") {
+      pendingAutoSpeak.current = false;
+      return;
+    }
 
     if (mode !== "auto") return;
 
+    // First time landing on home this session
     if (!homeIntroSpokenThisSession && !spokeOnThisMount.current) {
       spokeOnThisMount.current = true;
       homeIntroSpokenThisSession = true;
@@ -118,7 +150,6 @@ export default function HomeScreen() {
   };
 
   const onPressUpload = () => {
-    // On-demand: speak only on the action
     if (loaded && settings.ttsEnabled && settings.ttsMode === "onDemand") {
       speak("Upload Picture. Choose a photo or take a new one.", true);
     }
@@ -135,7 +166,6 @@ export default function HomeScreen() {
       Alert.alert("Instructions", "Tap Upload Picture to analyze a fruit photo.");
     }
   };
-
 
   const showReplay = loaded && settings.ttsEnabled;
 
@@ -157,7 +187,6 @@ export default function HomeScreen() {
             <Pressable
               style={styles.replayButton}
               onPress={() => {
-  
                 speak("Home screen. Tap Upload Picture to get started.", true);
               }}
               accessibilityRole="button"
