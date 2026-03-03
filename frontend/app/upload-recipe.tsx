@@ -11,10 +11,12 @@ import {
   Image,
   ActivityIndicator,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 
-import { clipFromUrl } from "@/services/clip"; // ✅ NEW
+import { clipFromUrl } from "@/services/clip";
+import { tts } from "@/services/tts";
+import { useSettings } from "@/services/settingsContext";
 
 const CAMERA_GREEN = "#1F4C47";
 const CREAM = "#FAF7F2";
@@ -22,52 +24,64 @@ const COOL_GRAY = "#B9C0BE";
 
 export default function UploadRecipeScreen() {
   const router = useRouter();
+  const { settings, loaded } = useSettings();
+
   const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-  // NEW: import URL field
   const [recipeUrl, setRecipeUrl] = useState("");
   const [importing, setImporting] = useState(false);
 
-  // Manual entry fields
   const [title, setTitle] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [instructions, setInstructions] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const canImport = useMemo(() => {
-    return recipeUrl.trim().length > 0 && !importing && !submitting;
-  }, [recipeUrl, importing, submitting]);
+  const canImport = useMemo(
+    () => recipeUrl.trim().length > 0 && !importing && !submitting,
+    [recipeUrl, importing, submitting]
+  );
 
-  const canSubmit = useMemo(() => {
-    return (
+  const canSubmit = useMemo(
+    () =>
       title.trim().length > 0 &&
       ingredients.trim().length > 0 &&
       instructions.trim().length > 0 &&
       !submitting &&
-      !importing
-    );
-  }, [title, ingredients, instructions, submitting, importing]);
+      !importing,
+    [title, ingredients, instructions, submitting, importing]
+  );
+
+  // Auto-announce screen on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      tts.autoSay(
+        "Upload Recipe screen. Paste a URL to import, or fill in the fields manually."
+      );
+    }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch])
+  );
 
   const onImport = async () => {
     const url = recipeUrl.trim();
     if (!url) {
+      tts.say("Please paste a recipe URL first.");
       Alert.alert("Import Recipe", "Paste a recipe URL.");
       return;
     }
 
     try {
       setImporting(true);
+      tts.say("Importing recipe. Please wait.");
 
-      // Calls FastAPI /clip/ (scrape-only, no DB writes)
       const res = await clipFromUrl({ url, ml_disable: true });
 
-      // Autofill fields
       setTitle(res.recipe.title || "");
       setIngredients(res.recipe.ingredients_description || "");
       setInstructions(res.recipe.instructions_description || "");
 
+      tts.say("Recipe imported. Review the fields, then tap Submit.");
       Alert.alert("Import Recipe", "Imported! Review and edit, then submit.");
     } catch (e: any) {
+      tts.say("Could not import recipe.");
       Alert.alert("Import Recipe", e?.message || "Could not import recipe.");
     } finally {
       setImporting(false);
@@ -81,7 +95,11 @@ export default function UploadRecipeScreen() {
     }
 
     if (!title.trim() || !ingredients.trim() || !instructions.trim()) {
-      Alert.alert("Upload Recipe", "Please fill out title, ingredients, and instructions.");
+      tts.say("Please fill out all fields before submitting.");
+      Alert.alert(
+        "Upload Recipe",
+        "Please fill out title, ingredients, and instructions."
+      );
       return;
     }
 
@@ -93,6 +111,7 @@ export default function UploadRecipeScreen() {
 
     try {
       setSubmitting(true);
+      tts.say("Submitting recipe. Please wait.");
 
       const payload = {
         title: title.trim(),
@@ -116,18 +135,25 @@ export default function UploadRecipeScreen() {
 
       await res.json().catch(() => null);
 
+      tts.say("Recipe submitted successfully.");
       Alert.alert("Upload Recipe", "Recipe submitted!");
       router.back();
     } catch (e: any) {
+      tts.say("Could not submit recipe.");
       Alert.alert("Upload Recipe", e?.message || "Could not submit recipe.");
     } finally {
       setSubmitting(false);
     }
   };
 
+  const showReplay = loaded && settings.ttsEnabled;
+
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.page}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.brandHeader}>
           <Image
             source={require("../assets/images/FruitShoot Logo.png")}
@@ -136,12 +162,31 @@ export default function UploadRecipeScreen() {
           />
         </View>
 
-        <Text style={styles.h1}>Upload Recipe</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.h1}>Upload Recipe</Text>
+          {showReplay && (
+            <Pressable
+              style={styles.replayButton}
+              onPress={() =>
+                tts.say(
+                  "Upload Recipe screen. Paste a URL to import, or fill in the title, ingredients, and instructions manually, then tap Submit."
+                )
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Replay voice guidance"
+              accessibilityHint="Repeats instructions for this screen"
+            >
+              <Text style={styles.replayText}>Replay</Text>
+            </Pressable>
+          )}
+        </View>
         <View style={styles.underline} />
 
-        {/* ✅ NEW: Import from URL */}
+        {/* Import from URL */}
         <Text style={styles.sectionTitle}>Import from URL</Text>
-        <Text style={styles.helperText}>Paste a recipe link and we&apos;ll auto-fill the fields below.</Text>
+        <Text style={styles.helperText}>
+          Paste a recipe link and we&apos;ll auto-fill the fields below.
+        </Text>
 
         <TextInput
           value={recipeUrl}
@@ -152,6 +197,8 @@ export default function UploadRecipeScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           editable={!importing && !submitting}
+          accessibilityLabel="Recipe URL"
+          accessibilityHint="Paste a recipe URL to auto-fill the form"
         />
 
         <Pressable
@@ -162,6 +209,9 @@ export default function UploadRecipeScreen() {
             pressed && styles.pressed,
           ]}
           disabled={!canImport || importing || submitting}
+          accessibilityRole="button"
+          accessibilityLabel="Import"
+          accessibilityHint="Import recipe from the URL above"
         >
           {importing ? (
             <View style={styles.submitRow}>
@@ -184,6 +234,7 @@ export default function UploadRecipeScreen() {
           placeholderTextColor="#666"
           style={styles.input}
           editable={!submitting && !importing}
+          accessibilityLabel="Recipe title"
         />
 
         <Text style={styles.label}>Ingredients</Text>
@@ -195,6 +246,7 @@ export default function UploadRecipeScreen() {
           style={[styles.input, styles.multiline]}
           multiline
           editable={!submitting && !importing}
+          accessibilityLabel="Ingredients"
         />
 
         <Text style={styles.label}>Instructions</Text>
@@ -206,13 +258,19 @@ export default function UploadRecipeScreen() {
           style={[styles.input, styles.multiline]}
           multiline
           editable={!submitting && !importing}
+          accessibilityLabel="Instructions"
         />
 
         <View style={styles.btnRow}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => {
+              tts.say("Cancelled.");
+              router.back();
+            }}
             style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
             disabled={submitting || importing}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
           >
             <Text style={styles.secondaryText}>Cancel</Text>
           </Pressable>
@@ -225,6 +283,8 @@ export default function UploadRecipeScreen() {
               pressed && styles.pressed,
             ]}
             disabled={!canSubmit || submitting || importing}
+            accessibilityRole="button"
+            accessibilityLabel="Submit recipe"
           >
             {submitting ? (
               <View style={styles.submitRow}>
@@ -248,6 +308,12 @@ const styles = StyleSheet.create({
   brandHeader: { alignItems: "center", marginBottom: 0 },
   brandLogo: { width: 140, height: 140, marginBottom: 6 },
 
+  titleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
   h1: { fontSize: 22, fontWeight: "900", color: CAMERA_GREEN },
   underline: {
     height: 2,
@@ -258,10 +324,23 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
 
+  replayButton: {
+    backgroundColor: "#3B3B3B",
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+  },
+  replayText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+
   sectionTitle: { fontSize: 16, fontWeight: "900", color: "#111", marginTop: 2 },
   helperText: { marginTop: 6, color: "#333", fontSize: 13, lineHeight: 18 },
 
-  divider: { height: 1, backgroundColor: COOL_GRAY, marginVertical: 18, opacity: 0.8 },
+  divider: {
+    height: 1,
+    backgroundColor: COOL_GRAY,
+    marginVertical: 18,
+    opacity: 0.8,
+  },
 
   label: { marginTop: 12, fontSize: 14, fontWeight: "800", color: "#111" },
   input: {

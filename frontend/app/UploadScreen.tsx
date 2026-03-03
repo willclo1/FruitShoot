@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -11,15 +11,20 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 
 import { uploadUserImage } from "@/services/images";
 import { getMe } from "@/services/me";
+import { tts } from "@/services/tts";
+import { useSettings } from "@/services/settingsContext";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+let uploadIntroSpokenThisSession = false;
+
 export default function UploadScreen() {
   const router = useRouter();
+  const { settings, loaded } = useSettings();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [description, setDescription] = useState("");
@@ -27,6 +32,111 @@ export default function UploadScreen() {
 
   const loading = phase !== "idle";
   const canUpload = useMemo(() => !!imageUri && !loading, [imageUri, loading]);
+
+  const spokeOnThisMount = useRef(false);
+  const isFocused = useRef(false);
+  const pendingAutoSpeak = useRef(false);
+
+  const prevEnabled = useRef<boolean | null>(null);
+  const prevMode = useRef<"auto" | "onDemand" | null>(null);
+
+  const say = (text: string, interrupt = true) => {
+    if (!loaded) return;
+    if (!settings.ttsEnabled) return;
+    tts.say(text, {
+      interrupt,
+      rate: settings.ttsRate,
+      pitch: settings.ttsPitch,
+    });
+  };
+
+  const speakUploadIntro = () => {
+    if (!loaded) return;
+    if (!settings.ttsEnabled) return;
+    if (settings.ttsMode !== "auto") return;
+    say("Upload screen. Choose Library or Camera, then press Upload to analyze ripeness.", true);
+  };
+
+  // Fire pending auto-speak when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      isFocused.current = true;
+
+      if (pendingAutoSpeak.current) {
+        pendingAutoSpeak.current = false;
+        speakUploadIntro();
+        uploadIntroSpokenThisSession = true;
+      }
+
+      return () => {
+        isFocused.current = false;
+      };
+    }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch])
+  );
+
+  useEffect(() => {
+    if (!loaded) return;
+
+    const enabled = settings.ttsEnabled;
+    const mode = settings.ttsMode;
+
+    const wasEnabled = prevEnabled.current;
+    const wasMode = prevMode.current;
+
+    prevEnabled.current = enabled;
+    prevMode.current = mode;
+
+    if (!enabled) return;
+
+    // TTS was just turned on
+    if (wasEnabled === false && enabled === true) {
+      say("Voice guidance enabled.", true);
+
+      if (mode === "auto") {
+        if (isFocused.current) {
+          setTimeout(() => {
+            speakUploadIntro();
+            uploadIntroSpokenThisSession = true;
+          }, 150);
+        } else {
+          pendingAutoSpeak.current = true;
+        }
+      }
+      return;
+    }
+
+    // Mode just switched to auto
+    if (wasMode !== "auto" && mode === "auto") {
+      if (isFocused.current) {
+        speakUploadIntro();
+        uploadIntroSpokenThisSession = true;
+      } else {
+        pendingAutoSpeak.current = true;
+      }
+      return;
+    }
+
+    // Mode switched away from auto — clear pending
+    if (wasMode === "auto" && mode !== "auto") {
+      pendingAutoSpeak.current = false;
+      return;
+    }
+
+    if (mode !== "auto") return;
+
+    // First time landing on this screen this session
+    if (!uploadIntroSpokenThisSession && !spokeOnThisMount.current) {
+      spokeOnThisMount.current = true;
+      uploadIntroSpokenThisSession = true;
+      speakUploadIntro();
+    }
+  }, [
+    loaded,
+    settings.ttsEnabled,
+    settings.ttsMode,
+    settings.ttsRate,
+    settings.ttsPitch,
+  ]);
 
   useEffect(() => {
     (async () => {
@@ -36,25 +146,82 @@ export default function UploadScreen() {
           "Permission required",
           "Permission to access media library is required."
         );
+        say(
+          "Permission needed. Please allow photo library access to select an image.",
+          true
+        );
       }
     })();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, settings.ttsEnabled]);
+
+  const sayAsync = (text: string) => {
+    return new Promise<void>((resolve) => {
+      if (!loaded || !settings.ttsEnabled) return resolve();
+
+      let done = false;
+      const fallbackMs = 1800;
+
+      const timer = setTimeout(() => {
+        if (done) return;
+        done = true;
+        resolve();
+      }, fallbackMs);
+
+      tts.say(text, {
+        interrupt: true,
+        rate: settings.ttsRate,
+        pitch: settings.ttsPitch,
+        onDone: () => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve();
+        },
+        onError: () => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve();
+        },
+      });
+    });
+  };
 
   const pickImage = async () => {
+    if (loading) return;
+
+    await sayAsync("Opening photo library.");
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 1,
     });
 
-    if (!result.canceled) setImageUri(result.assets[0].uri);
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+      tts.say("Image selected. Press Upload to analyze.", {
+        interrupt: true,
+        rate: settings.ttsRate,
+        pitch: settings.ttsPitch,
+      });
+    }
   };
 
   const takePhoto = async () => {
+    if (loading) return;
+
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permission required", "Camera permission is required.");
+      say("Permission needed. Please allow camera access to take a photo.", true);
       return;
+    }
+
+    if (loaded && settings.ttsEnabled) {
+      say("Opening camera.", true);
+      await sleep(300);
     }
 
     const result = await ImagePicker.launchCameraAsync({
@@ -62,7 +229,10 @@ export default function UploadScreen() {
       quality: 1,
     });
 
-    if (!result.canceled) setImageUri(result.assets[0].uri);
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+      say("Photo captured. Press Upload to analyze.", true);
+    }
   };
 
   const uploadImage = async () => {
@@ -70,6 +240,7 @@ export default function UploadScreen() {
 
     try {
       setPhase("uploading");
+      say("Uploading image. Please wait.", true);
 
       const me = await getMe();
       if (!me?.id) throw new Error("Could not determine user. Please log in again.");
@@ -81,23 +252,34 @@ export default function UploadScreen() {
       });
 
       setPhase("analyzing");
+      say("Analyzing with AI. Please wait.", true);
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.detail || "Upload failed");
 
-      const minAnalyzeMs = 900;
-      await sleep(minAnalyzeMs);
+      await sleep(900);
 
       const label = data?.prediction?.prediction ?? "Unknown";
-      const conf = typeof data?.prediction?.confidence === "number" ? data.prediction.confidence : 0;
+      const conf =
+        typeof data?.prediction?.confidence === "number"
+          ? data.prediction.confidence
+          : 0;
+
+      say(
+        `Result: ${label}. Confidence ${(conf * 100).toFixed(0)} percent.`,
+        true
+      );
 
       Alert.alert("Result", `${label} (${(conf * 100).toFixed(1)}%)`);
+
       setImageUri(null);
       setDescription("");
       setPhase("idle");
     } catch (e: any) {
       setPhase("idle");
-      Alert.alert("Upload failed", e?.message || "Something went wrong");
+      const msg = e?.message || "Something went wrong";
+      say(`Upload failed. ${msg}`, true);
+      Alert.alert("Upload failed", msg);
     }
   };
 
@@ -108,25 +290,67 @@ export default function UploadScreen() {
       ? "Analyzing with AI..."
       : "";
 
+  const showReplay = loaded && settings.ttsEnabled;
+
   return (
     <SafeAreaView style={styles.container}>
-      <Pressable
-        onPress={() => router.back()}
-        style={styles.backRow}
-        disabled={loading}
-      >
-        <Text style={[styles.backText, loading && styles.disabledText]}>← Back</Text>
-      </Pressable>
+      <View style={styles.topRow}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backRow}
+          disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          accessibilityHint="Returns to the previous screen"
+        >
+          <Text style={[styles.backText, loading && styles.disabledText]}>
+            ← Back
+          </Text>
+        </Pressable>
+
+        {showReplay && (
+          <Pressable
+            style={styles.replayButton}
+            onPress={() => {
+              say(
+                imageUri
+                  ? "Upload screen. Image selected. Press Upload to analyze."
+                  : "Upload screen. Choose Library or Camera to select an image, then press Upload.",
+                true
+              );
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Replay voice guidance"
+            accessibilityHint="Repeats instructions for this screen"
+          >
+            <Text style={styles.replayText}>Replay</Text>
+          </Pressable>
+        )}
+      </View>
 
       <Text style={styles.title}>Upload Fruit Image</Text>
       <Text style={styles.subtitle}>Choose from your library or take a photo.</Text>
 
       <View style={styles.buttonRow}>
-        <Pressable style={[styles.secondaryBtn, loading && styles.btnDisabled]} onPress={pickImage} disabled={loading}>
+        <Pressable
+          style={[styles.secondaryBtn, loading && styles.btnDisabled]}
+          onPress={pickImage}
+          disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel="Library"
+          accessibilityHint="Select an image from your photo library"
+        >
           <Text style={styles.secondaryText}>Library</Text>
         </Pressable>
 
-        <Pressable style={[styles.secondaryBtn, loading && styles.btnDisabled]} onPress={takePhoto} disabled={loading}>
+        <Pressable
+          style={[styles.secondaryBtn, loading && styles.btnDisabled]}
+          onPress={takePhoto}
+          disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel="Camera"
+          accessibilityHint="Take a new photo using the camera"
+        >
           <Text style={styles.secondaryText}>Camera</Text>
         </Pressable>
       </View>
@@ -138,21 +362,29 @@ export default function UploadScreen() {
         placeholderTextColor="#6B7776"
         style={styles.input}
         editable={!loading}
+        accessibilityLabel="Description"
+        accessibilityHint="Optional description for your upload"
       />
 
       {imageUri ? (
-        <Image source={{ uri: imageUri }} style={styles.preview} />
+        <Image
+          source={{ uri: imageUri }}
+          style={styles.preview}
+          accessibilityLabel="Selected image preview"
+        />
       ) : (
-        <View style={styles.placeholder}>
+        <View
+          style={styles.placeholder}
+          accessible
+          accessibilityLabel="No image selected"
+        >
           <Text style={styles.placeholderTitle}>No image selected</Text>
-          <Text style={styles.placeholderText}>
-            Pick one above to preview it here.
-          </Text>
+          <Text style={styles.placeholderText}>Pick one above to preview it here.</Text>
         </View>
       )}
 
       {loading && (
-        <View style={styles.loadingRow}>
+        <View style={styles.loadingRow} accessibilityLiveRegion="polite">
           <ActivityIndicator />
           <Text style={styles.loadingText}>{statusText}</Text>
         </View>
@@ -162,6 +394,9 @@ export default function UploadScreen() {
         style={[styles.uploadBtn, !canUpload && styles.uploadBtnDisabled]}
         onPress={uploadImage}
         disabled={!canUpload}
+        accessibilityRole="button"
+        accessibilityLabel="Upload"
+        accessibilityHint="Uploads the selected image and analyzes ripeness"
       >
         {loading ? (
           <Text style={styles.uploadText}>
@@ -178,9 +413,23 @@ export default function UploadScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#fff" },
 
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
   backRow: { alignSelf: "flex-start", paddingVertical: 8 },
   backText: { color: "#1F4C47", fontSize: 16, fontWeight: "600" },
   disabledText: { opacity: 0.5 },
+
+  replayButton: {
+    backgroundColor: "#3B3B3B",
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+  },
+  replayText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 
   title: { color: "#0F1F1D", fontSize: 22, fontWeight: "800", marginTop: 6 },
   subtitle: { color: "#465251", marginTop: 6, marginBottom: 12, fontSize: 14 },

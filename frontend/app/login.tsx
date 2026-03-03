@@ -59,6 +59,8 @@ export default function LoginScreen() {
             source={require("../assets/images/FruitShoot Logo.png")}
             style={styles.logo}
             resizeMode="contain"
+            accessibilityLabel="FruitShoot logo"
+            accessibilityIgnoresInvertColors
           />
 
           <View style={styles.card}>
@@ -72,6 +74,8 @@ export default function LoginScreen() {
               autoCapitalize="none"
               keyboardType="email-address"
               style={styles.input}
+              accessibilityLabel="Email"
+              accessibilityHint="Enter your email address"
             />
 
             <TextInput
@@ -81,9 +85,17 @@ export default function LoginScreen() {
               placeholderTextColor="#6F6F6F"
               secureTextEntry
               style={styles.input}
+              accessibilityLabel="Password"
+              accessibilityHint="Enter your password"
             />
 
-            <Pressable onPress={onForgotPassword} style={styles.forgotWrap}>
+            <Pressable
+              onPress={onForgotPassword}
+              style={styles.forgotWrap}
+              accessibilityRole="button"
+              accessibilityLabel="Forgot password"
+              accessibilityHint="Opens the password reset flow"
+            >
               <Text style={styles.forgotText}>Forgot Password?</Text>
             </Pressable>
 
@@ -95,11 +107,21 @@ export default function LoginScreen() {
                 pressed && styles.ctaPressed,
                 !canSubmit && styles.ctaDisabled,
               ]}
+              accessibilityRole="button"
+              accessibilityLabel="Get started"
+              accessibilityHint="Signs you in and opens the app"
+              accessibilityState={{ disabled: !canSubmit }}
             >
               <Text style={styles.ctaText}>Get Started</Text>
             </Pressable>
 
-            <Pressable onPress={onGoToRegister} style={styles.backWrap}>
+            <Pressable
+              onPress={onGoToRegister}
+              style={styles.backWrap}
+              accessibilityRole="button"
+              accessibilityLabel="Create an account"
+              accessibilityHint="Navigates to the registration screen"
+            >
               <Text style={styles.backText}>Create an account</Text>
             </Pressable>
           </View>
