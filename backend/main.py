@@ -32,7 +32,6 @@ from ml.predict import predict_image_path
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print(">>> lifespan start (process boot)")
     await init_browser()
 
     print("Installing model")
@@ -44,7 +43,6 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    print(">>> lifespan shutdown")
     await shutdown_browser()
 
 
