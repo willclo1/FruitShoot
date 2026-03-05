@@ -10,7 +10,7 @@ import {
   Alert,
 } from "react-native";
 import Slider from "@react-native-community/slider";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 
 import { tts } from "@/services/tts";
 import { useSettings } from "@/services/settingsContext";
@@ -20,68 +20,212 @@ const BG = "#F6F3EE";
 const TRACK = "#D9D9D9";
 const THUMB = "#E94B3C";
 
-const RIPENESS_LABELS = ["Unripe", "Ripe", "Overripe", "Spoiled"];
+const RIPENESS_LABELS = ["Unripe", "Ripe", "Overripe", "Spoiled"] as const;
+
+function ripenessToIndex(label?: string) {
+  const l = (label || "").toLowerCase();
+  if (l.includes("under")) return 0;
+  if (l === "ripe") return 1;
+  if (l.includes("rot") || l.includes("spo")) return 3;
+  if (l === "n/a" || l.includes("na")) return 1;
+  return 1;
+}
+
+function confPct(conf: number) {
+  if (!isFinite(conf) || conf <= 0) return null;
+  return Math.round(conf * 100);
+}
 
 export default function ResultsScreen() {
   const { settings, loaded } = useSettings();
-  const [ripeness, setRipeness] = useState(0);
-  const ripenessLabel = useMemo(() => RIPENESS_LABELS[ripeness], [ripeness]);
 
-  // Auto-announce screen on focus
+  const params = useLocalSearchParams<{
+    uploadedUrl?: string;
+    fruit?: string;
+    fruitConfidence?: string;
+    ripeness?: string;
+    ripenessConfidence?: string;
+  }>();
+
+  const fruit = params.fruit ?? "Unknown";
+  const fruitConfidence = Number(params.fruitConfidence ?? "0");
+  const modelRipeness = params.ripeness ?? "N/A";
+  const ripenessConfidence = Number(params.ripenessConfidence ?? "0");
+
+  const ripenessIndex = useMemo(() => ripenessToIndex(modelRipeness), [modelRipeness]);
+  const ripenessLabel = useMemo(() => RIPENESS_LABELS[ripenessIndex], [ripenessIndex]);
+
+  const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL || "";
+  const imageUrl = useMemo(() => {
+    const u = params.uploadedUrl;
+    if (!u) return null;
+    if (u.startsWith("http")) return u;
+    return `${apiBase}${u}`;
+  }, [params.uploadedUrl, apiBase]);
+
+  const fruitPct = confPct(fruitConfidence);
+  const ripePct = confPct(ripenessConfidence);
+
+  const headline = useMemo(() => {
+  switch (ripenessIndex) {
+    case 1:
+      return "Ready to eat";
+    case 0:
+      return "Needs more time";
+    case 2:
+      return "Use soon";
+    case 3:
+      return "Past its prime";
+    default:
+      return "Results";
+  }
+}, [ripenessIndex]);
+
+  const hint = useMemo(() => {
+    switch (ripenessIndex) {
+      case 1:
+        return "Best flavor right now.";
+      case 0:
+        return "Give it a little longer.";
+      case 2:
+        return "Great for smoothies or baking.";
+      case 3:
+        return "Consider composting if it smells off.";
+      default:
+        return "";
+    }
+  }, [ripenessIndex]);
+
+  // Auto-announce once on focus (simple)
   useFocusEffect(
     React.useCallback(() => {
-      tts.autoSay("Results screen. The slider will tell you how ripe the fruit you submitted is.");
-    }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch])
+      tts.autoSay(`Results. ${fruit}. ${headline}.`);
+    }, [
+      loaded,
+      settings.ttsEnabled,
+      settings.ttsMode,
+      settings.ttsRate,
+      settings.ttsPitch,
+      fruit,
+      headline,
+    ])
   );
-
-  const onSliderChange = (v: number) => {
-    const rounded = Math.round(v);
-    setRipeness(rounded);
-    tts.say(RIPENESS_LABELS[rounded]);
-  };
 
   const showReplay = loaded && settings.ttsEnabled;
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Header */}
         <View style={styles.topRow}>
           <Image
             source={require("../../assets/images/FruitShoot Logo.png")}
             style={styles.logo}
             resizeMode="contain"
           />
+
           {showReplay && (
             <Pressable
               style={styles.replayButton}
-              onPress={() =>
-                tts.say(
-                  `Results screen. Current ripeness: ${ripenessLabel}.`
-                )
-              }
+              onPress={() => tts.say(`Results. ${fruit}. ${headline}.`)}
               accessibilityRole="button"
-              accessibilityLabel="Replay voice guidance"
-              accessibilityHint="Repeats the results screen instructions"
+              accessibilityLabel="Replay"
+              accessibilityHint="Repeats a short summary"
             >
               <Text style={styles.replayText}>Replay</Text>
             </Pressable>
           )}
         </View>
 
-        <Text style={styles.subtitle}>Results</Text>
+        {/* Hero */}
+        <View style={styles.hero}>
+          {imageUrl ? (
+            <Image
+              source={{ uri: imageUrl }}
+              style={styles.heroImage}
+              resizeMode="cover"
+              accessibilityLabel="Uploaded fruit image"
+            />
+          ) : (
+            <View style={styles.heroPlaceholder} />
+          )}
 
-        {/* Recipes Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Recipes</Text>
+          <View style={styles.heroOverlay} />
+          <View style={styles.heroText}>
+            <Text style={styles.heroFruit}>{fruit}</Text>
+            <Text style={styles.heroHeadline}>{headline}</Text>
+          </View>
+        </View>
 
-          <View style={styles.cardBodyCenter}>
-            <Text style={styles.cardBigText}>Coming soon</Text>
-            <Text style={styles.cardSmallText}>
-              Recipe suggestions will appear here in a future update.
+        {/* Minimal info strip */}
+        <View style={styles.infoStrip}>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Fruit</Text>
+            <Text style={styles.infoValue}>
+              {fruit}
+              {fruitPct !== null ? <Text style={styles.infoMuted}>  ·  {fruitPct}%</Text> : null}
             </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Ripeness</Text>
+            <Text style={styles.infoValue}>
+              {ripenessLabel}
+              {ripePct !== null ? <Text style={styles.infoMuted}>  ·  {ripePct}%</Text> : null}
+            </Text>
+          </View>
+        </View>
+
+        {/* Ripeness visualization (read-only) */}
+        <View style={styles.ripenessBlock}>
+          <Text style={styles.sectionTitle}>Ripeness</Text>
+
+          <View style={styles.sliderWrap} pointerEvents="none">
+            <Slider
+              value={ripenessIndex}
+              minimumValue={0}
+              maximumValue={3}
+              step={1}
+              disabled
+              minimumTrackTintColor={TRACK}
+              maximumTrackTintColor={TRACK}
+              thumbTintColor={THUMB}
+              accessibilityLabel="Ripeness indicator"
+              accessibilityHint="Shows ripeness stage"
+            />
+          </View>
+
+          <View style={styles.stageRow}>
+            {RIPENESS_LABELS.map((label, idx) => (
+              <View
+                key={label}
+                style={[
+                  styles.stagePill,
+                  idx === ripenessIndex && styles.stagePillActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.stageText,
+                    idx === ripenessIndex && styles.stageTextActive,
+                  ]}
+                >
+                  {label}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={styles.hintText}>{hint}</Text>
+        </View>
+
+        {/* Recipes teaser (simple, not a big card) */}
+        <View style={styles.recipesRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sectionTitle}>Recipes</Text>
+            <Text style={styles.recipesSub}>Coming soon</Text>
           </View>
 
           <Pressable
@@ -89,55 +233,16 @@ export default function ResultsScreen() {
               tts.say("Recipes are coming soon.");
               Alert.alert("Recipes", "Recipe suggestions are coming soon.");
             }}
-            style={styles.seeMoreWrap}
+            style={styles.linkButton}
             accessibilityRole="button"
             accessibilityLabel="See more recipes"
             accessibilityHint="Recipes feature is coming soon"
           >
-            <Text style={styles.seeMoreText}>See more</Text>
+            <Text style={styles.linkText}>See more</Text>
           </Pressable>
         </View>
 
-        {/* Ripeness Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Ripeness</Text>
-
-          <View style={{ marginTop: 22 }}>
-            <Slider
-              value={ripeness}
-              onValueChange={onSliderChange}
-              minimumValue={0}
-              maximumValue={3}
-              step={1}
-              minimumTrackTintColor={TRACK}
-              maximumTrackTintColor={TRACK}
-              thumbTintColor={THUMB}
-              accessibilityLabel="Ripeness slider"
-              accessibilityHint="Slide to explore ripeness stages"
-            />
-
-            <View style={styles.ripenessRow}>
-              {RIPENESS_LABELS.map((label, idx) => (
-                <Text
-                  key={label}
-                  style={[
-                    styles.ripenessLabel,
-                    idx === ripeness && styles.ripenessLabelActive,
-                  ]}
-                >
-                  {label}
-                </Text>
-              ))}
-            </View>
-
-            <Text style={styles.ripenessHint}>
-              Selected:{" "}
-              <Text style={styles.ripenessHintBold}>{ripenessLabel}</Text>
-            </Text>
-          </View>
-        </View>
-
-        <View style={{ height: 30 }} />
+        <View style={{ height: 28 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -146,9 +251,8 @@ export default function ResultsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BG },
   container: {
-    alignItems: "center",
-    paddingHorizontal: 22,
-    paddingTop: 20,
+    paddingHorizontal: 18,
+    paddingTop: 16,
     paddingBottom: 110,
   },
 
@@ -157,96 +261,178 @@ const styles = StyleSheet.create({
     width: "100%",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 8,
   },
-
-  logo: { width: 140, height: 140 },
+  logo: { width: 110, height: 110 },
 
   replayButton: {
     backgroundColor: "#3B3B3B",
-    paddingVertical: 6,
+    paddingVertical: 7,
     paddingHorizontal: 14,
     borderRadius: 999,
-    alignSelf: "flex-start",
-    marginTop: 8,
   },
-  replayText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  replayText: { color: "#fff", fontWeight: "800", fontSize: 13 },
 
-  subtitle: {
-    fontSize: 30,
-    fontWeight: "900",
-    color: BRAND,
-    textDecorationLine: "underline",
-    marginBottom: 20,
-    alignSelf: "flex-start",
-  },
-
-  card: {
+  hero: {
     width: "100%",
-    backgroundColor: BRAND,
-    borderRadius: 34,
-    padding: 22,
-    marginTop: 22,
-    minHeight: 190,
+    height: 310,
+    borderRadius: 26,
+    overflow: "hidden",
+    backgroundColor: "#E7E1D9",
   },
-  cardTitle: {
+  heroImage: { width: "100%", height: "100%" },
+  heroPlaceholder: { width: "100%", height: "100%" },
+  heroOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 120,
+    backgroundColor: "rgba(0,0,0,0.38)",
+  },
+  heroText: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 14,
+  },
+  heroFruit: {
     color: "white",
-    fontSize: 24,
-    fontWeight: "700",
+    fontSize: 26,
+    fontWeight: "900",
+    letterSpacing: 0.2,
   },
-
-  cardBodyCenter: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: 14,
-  },
-  cardBigText: {
-    color: "white",
-    fontSize: 20,
+  heroHeadline: {
+    marginTop: 6,
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 16,
     fontWeight: "800",
   },
-  cardSmallText: {
-    marginTop: 8,
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 14,
-    textAlign: "center",
-    lineHeight: 18,
-    maxWidth: 260,
-  },
 
-  seeMoreWrap: {
-    alignSelf: "flex-end",
-    marginTop: 10,
-  },
-  seeMoreText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "800",
-    textDecorationLine: "underline",
-  },
-
-  ripenessRow: {
+  infoStrip: {
+    marginTop: 14,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.78)",
+    borderWidth: 1,
+    borderColor: "rgba(31,76,71,0.12)",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 14,
+    alignItems: "center",
+    gap: 12,
   },
-  ripenessLabel: {
-    color: "white",
+  infoItem: { flex: 1 },
+  infoLabel: {
+    color: "rgba(15,31,29,0.65)",
+    fontSize: 12,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
+  },
+  infoValue: {
+    marginTop: 6,
+    color: "#0F1F1D",
     fontSize: 18,
-    fontWeight: "700",
-    textDecorationLine: "underline",
-  },
-  ripenessLabelActive: {
     fontWeight: "900",
   },
-  ripenessHint: {
-    marginTop: 14,
-    color: "rgba(255,255,255,0.9)",
+  infoMuted: {
+    color: "rgba(15,31,29,0.55)",
     fontSize: 14,
-    textAlign: "center",
+    fontWeight: "800",
   },
-  ripenessHintBold: {
+  divider: {
+    width: 1,
+    height: 34,
+    backgroundColor: "rgba(31,76,71,0.18)",
+  },
+
+  ripenessBlock: {
+    marginTop: 18,
+    paddingTop: 6,
+  },
+  sectionTitle: {
+    color: BRAND,
+    fontSize: 20,
+    fontWeight: "950" as any,
+    textDecorationLine: "underline",
+    marginBottom: 10,
+  },
+
+  sliderWrap: {
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.70)",
+    borderWidth: 1,
+    borderColor: "rgba(31,76,71,0.12)",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+
+  stageRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 12,
+  },
+  stagePill: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "rgba(31,76,71,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(31,76,71,0.12)",
+    alignItems: "center",
+  },
+  stagePillActive: {
+    backgroundColor: BRAND,
+    borderColor: "rgba(31,76,71,0.30)",
+  },
+  stageText: {
+    color: BRAND,
     fontWeight: "900",
+    fontSize: 12,
+  },
+  stageTextActive: {
+    color: "white",
+  },
+
+  hintText: {
+    marginTop: 10,
+    color: "rgba(15,31,29,0.72)",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 18,
+  },
+
+  recipesRow: {
+    marginTop: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.60)",
+    borderWidth: 1,
+    borderColor: "rgba(31,76,71,0.10)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  recipesSub: {
+    marginTop: 6,
+    color: "rgba(15,31,29,0.65)",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  linkButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: "rgba(233,75,60,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(233,75,60,0.22)",
+  },
+  linkText: {
+    color: "#B0342B",
+    fontWeight: "900",
+    textDecorationLine: "underline",
+    fontSize: 14,
   },
 });

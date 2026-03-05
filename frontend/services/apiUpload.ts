@@ -2,7 +2,7 @@ import * as SecureStore from "expo-secure-store";
 
 const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-export async function apiUpload(path: string, formData: FormData) {
+export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
   const access = await SecureStore.getItemAsync("access_token");
 
   const doFetch = (token?: string) =>
@@ -36,5 +36,11 @@ export async function apiUpload(path: string, formData: FormData) {
     res = await doFetch(refreshData.access_token);
   }
 
-  return res;
+  // Parse + throw helpful errors
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error((data as any)?.detail || "Upload failed");
+  }
+
+  return data as T;
 }

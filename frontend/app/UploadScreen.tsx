@@ -54,7 +54,10 @@ export default function UploadScreen() {
     if (!loaded) return;
     if (!settings.ttsEnabled) return;
     if (settings.ttsMode !== "auto") return;
-    say("Upload screen. Choose Library or Camera, then press Upload to analyze ripeness.", true);
+    say(
+      "Upload screen. Choose Library or Camera, then press Upload to see results.",
+      true
+    );
   };
 
   // Fire pending auto-speak when screen comes into focus
@@ -71,7 +74,13 @@ export default function UploadScreen() {
       return () => {
         isFocused.current = false;
       };
-    }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch])
+    }, [
+      loaded,
+      settings.ttsEnabled,
+      settings.ttsMode,
+      settings.ttsRate,
+      settings.ttsPitch,
+    ])
   );
 
   useEffect(() => {
@@ -201,7 +210,7 @@ export default function UploadScreen() {
 
     if (!result.canceled) {
       setImageUri(result.assets[0].uri);
-      tts.say("Image selected. Press Upload to analyze.", {
+      tts.say("Image selected. Press Upload to continue.", {
         interrupt: true,
         rate: settings.ttsRate,
         pitch: settings.ttsPitch,
@@ -231,7 +240,7 @@ export default function UploadScreen() {
 
     if (!result.canceled) {
       setImageUri(result.assets[0].uri);
-      say("Photo captured. Press Upload to analyze.", true);
+      say("Photo captured. Press Upload to continue.", true);
     }
   };
 
@@ -243,34 +252,31 @@ export default function UploadScreen() {
       say("Uploading image. Please wait.", true);
 
       const me = await getMe();
-      if (!me?.id) throw new Error("Could not determine user. Please log in again.");
+      if (!me?.id)
+        throw new Error("Could not determine user. Please log in again.");
 
-      const res = await uploadUserImage({
+      const data = await uploadUserImage({
         userId: me.id,
         imageUri,
         description: description.trim() || undefined,
       });
 
       setPhase("analyzing");
-      say("Analyzing with AI. Please wait.", true);
+      say("Analyzing. Please wait.", true);
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.detail || "Upload failed");
+      await sleep(300);
 
-      await sleep(900);
-
-      const label = data?.prediction?.prediction ?? "Unknown";
-      const conf =
-        typeof data?.prediction?.confidence === "number"
-          ? data.prediction.confidence
-          : 0;
-
-      say(
-        `Result: ${label}. Confidence ${(conf * 100).toFixed(0)} percent.`,
-        true
-      );
-
-      Alert.alert("Result", `${label} (${(conf * 100).toFixed(1)}%)`);
+      router.push({
+        // Adjust this if your route is different, e.g. "/(tabs)/results"
+        pathname: "/ResultsScreen",
+        params: {
+          uploadedUrl: data.url,
+          fruit: data.prediction?.fruit ?? "Unknown",
+          fruitConfidence: String(data.prediction?.fruit_confidence ?? 0),
+          ripeness: data.prediction?.ripeness ?? "N/A",
+          ripenessConfidence: String(data.prediction?.ripeness_confidence ?? 0),
+        },
+      });
 
       setImageUri(null);
       setDescription("");
@@ -287,7 +293,7 @@ export default function UploadScreen() {
     phase === "uploading"
       ? "Uploading image..."
       : phase === "analyzing"
-      ? "Analyzing with AI..."
+      ? "Analyzing..."
       : "";
 
   const showReplay = loaded && settings.ttsEnabled;
@@ -314,8 +320,8 @@ export default function UploadScreen() {
             onPress={() => {
               say(
                 imageUri
-                  ? "Upload screen. Image selected. Press Upload to analyze."
-                  : "Upload screen. Choose Library or Camera to select an image, then press Upload.",
+                  ? "Upload screen. Image selected. Press Upload to see results."
+                  : "Upload screen. Choose Library or Camera to select an image, then press Upload to see results.",
                 true
               );
             }}
@@ -329,7 +335,9 @@ export default function UploadScreen() {
       </View>
 
       <Text style={styles.title}>Upload Fruit Image</Text>
-      <Text style={styles.subtitle}>Choose from your library or take a photo.</Text>
+      <Text style={styles.subtitle}>
+        Choose from your library or take a photo.
+      </Text>
 
       <View style={styles.buttonRow}>
         <Pressable
@@ -379,7 +387,9 @@ export default function UploadScreen() {
           accessibilityLabel="No image selected"
         >
           <Text style={styles.placeholderTitle}>No image selected</Text>
-          <Text style={styles.placeholderText}>Pick one above to preview it here.</Text>
+          <Text style={styles.placeholderText}>
+            Pick one above to preview it here.
+          </Text>
         </View>
       )}
 
@@ -396,7 +406,7 @@ export default function UploadScreen() {
         disabled={!canUpload}
         accessibilityRole="button"
         accessibilityLabel="Upload"
-        accessibilityHint="Uploads the selected image and analyzes ripeness"
+        accessibilityHint="Uploads the selected image and shows results"
       >
         {loading ? (
           <Text style={styles.uploadText}>

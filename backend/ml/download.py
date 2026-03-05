@@ -3,9 +3,8 @@ from pathlib import Path
 import urllib.request
 
 def ensure_model():
-    model_path = Path(os.getenv("MODEL_PATH", "backend/ml/weights/mobilenetv3_fruit.pth"))
+    model_path = Path(os.getenv("MODEL_PATH", "backend/ml/weights/fruit_ripeness_model.pth"))
     model_url = os.getenv("MODEL_URL")
-
     if model_path.exists():
         return
 
