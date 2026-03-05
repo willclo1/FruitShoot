@@ -163,7 +163,7 @@ export default function HomeScreen() {
         true
       );
     } else {
-      Alert.alert("Instructions", "Tap Upload Picture to analyze a fruit photo.");
+      router.push("/instructions");
     }
   };
 
