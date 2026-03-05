@@ -27,10 +27,6 @@ export default function SettingsScreen() {
     });
   };
 
-  const contrastLabel = settings.highContrast
-    ? "High Contrast"
-    : "Standard Contrast";
-
   return (
     <SafeAreaView style={styles.safe}>
       <Pressable onPress={() => router.back()} style={styles.backRow}>
@@ -46,7 +42,7 @@ export default function SettingsScreen() {
         </Text>
 
         <Text style={[styles.subtitle, { fontSize: 14 * fontScale }]}>
-          Adjust voice, touch target sizing, and contrast options.
+          Adjust voice and touch target sizing.
         </Text>
 
         <View style={styles.card}>
@@ -61,8 +57,7 @@ export default function SettingsScreen() {
               setSettings((prev) => ({
                 ...prev,
                 ttsEnabled: v,
-                // ✅ If turning ON: default to onDemand (no auto speech unless user chooses it)
-                // ✅ If turning OFF: keep mode as-is (or force onDemand; either is fine)
+                // If turning ON: default to onDemand (no auto speech unless user chooses it)
                 ttsMode: v ? "onDemand" : prev.ttsMode,
               }))
             }
@@ -71,7 +66,6 @@ export default function SettingsScreen() {
 
           <Divider />
 
-          {/* Auto speak toggle (only meaningful if TTS enabled) */}
           <View style={styles.row}>
             <Text style={[styles.rowLabel, { fontSize: 16 * fontScale }]}>
               Auto speak on pages
@@ -81,7 +75,6 @@ export default function SettingsScreen() {
               onValueChange={(v) =>
                 setSettings((prev) => ({
                   ...prev,
-                  // only allow changing when enabled
                   ttsMode: v ? "auto" : "onDemand",
                 }))
               }
@@ -150,28 +143,6 @@ export default function SettingsScreen() {
 
           <Text style={[styles.helper, { fontSize: 12 * fontScale }]}>
             Makes buttons larger and easier to tap.
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={[styles.sectionTitle, { fontSize: 14 * fontScale }]}>
-            Color Contrast
-          </Text>
-
-          <Row
-            label={contrastLabel}
-            value={settings.highContrast}
-            onChange={(v) =>
-              setSettings((prev) => ({ ...prev, highContrast: v }))
-            }
-            fontScale={fontScale}
-          />
-
-          <Divider />
-
-          <Text style={[styles.helper, { fontSize: 12 * fontScale }]}>
-            (Dummy setting) This will be used later to increase contrast across the
-            app.
           </Text>
         </View>
 
@@ -268,14 +239,6 @@ function Stepper({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#FAF7F2" },
 
-  topBar: { paddingHorizontal: 16, paddingTop: 8, alignItems: "flex-start" },
-  backButton: {
-    backgroundColor: "#193F3A",
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-  },
-
   content: {
     padding: 24,
     gap: 16,
@@ -284,6 +247,7 @@ const styles = StyleSheet.create({
 
   title: { fontWeight: "800", color: "#193F3A" },
   subtitle: { color: "#3E3E3E", lineHeight: 20 },
+
   backRow: {
     alignSelf: "flex-start",
     paddingVertical: 20,

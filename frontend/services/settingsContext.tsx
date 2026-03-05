@@ -1,4 +1,3 @@
-// settingsContext.tsx
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { AppSettings } from "./settings";
 import { loadSettings, saveSettings } from "./settings";
@@ -13,7 +12,6 @@ type SettingsContextValue = {
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  // Keep this initial state aligned with DEFAULT_SETTINGS
   const [settings, _setSettings] = useState<AppSettings>({
     ttsEnabled: false,
     ttsMode: "auto",
@@ -22,7 +20,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     largeText: false,
     reduceMotion: false,
     largeTouchTargets: false,
-    highContrast: false,
   });
 
   const [loaded, setLoaded] = useState(false);
@@ -40,7 +37,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     _setSettings((prev) => {
       const next = updater(prev);
 
-      // Persist + apply
       saveSettings(next);
       applyTtsSettings(next);
 
@@ -57,17 +53,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 }
 
 function applyTtsSettings(s: AppSettings) {
-  // Single source of truth: enabled determines OFF/ON
   if (!s.ttsEnabled) {
     tts.setMode("off");
     tts.stop();
     return;
   }
 
-  // When enabled, mode is either "auto" or "onDemand"
   tts.setMode(s.ttsMode);
 }
-
 
 export function useSettings() {
   const ctx = useContext(SettingsContext);

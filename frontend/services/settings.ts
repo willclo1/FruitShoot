@@ -1,13 +1,9 @@
-// settings.ts
 import * as SecureStore from "expo-secure-store";
 
 export type TtsMode = "onDemand" | "auto";
 
 export type AppSettings = {
-  // Voice guidance master toggle
   ttsEnabled: boolean;
-
-  // Only two modes; "off" is handled by ttsEnabled=false
   ttsMode: TtsMode;
 
   ttsRate: number;
@@ -16,20 +12,18 @@ export type AppSettings = {
   largeText: boolean;
   reduceMotion: boolean;
   largeTouchTargets: boolean;
-  highContrast: boolean;
 };
 
 const KEY = "app_settings_v1";
 
 const DEFAULT_SETTINGS: AppSettings = {
   ttsEnabled: false,
-  ttsMode: "auto", // best default for accessibility once enabled
+  ttsMode: "auto",
   ttsRate: 1.0,
   ttsPitch: 1.0,
   largeText: false,
   reduceMotion: false,
   largeTouchTargets: false,
-  highContrast: false,
 };
 
 export async function loadSettings(): Promise<AppSettings> {
