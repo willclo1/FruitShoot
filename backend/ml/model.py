@@ -1,10 +1,11 @@
 import os
 from pathlib import Path
 import torch
-import torch.nn as nn
-from torchvision import models
 
-LABELS = ["Apple", "Banana", "Strawberry", "non-fruit"]
+from .multitask_resnet import MultiTaskResNet
+
+FRUIT_LABELS = ["Apple", "Banana", "Strawberry", "Non-Fruit"]
+RIPENESS_LABELS = ["Ripe", "Rotten", "N/A", "Underripe"]
 
 _model = None
 
@@ -13,23 +14,15 @@ def get_model():
     if _model is not None:
         return _model
 
-    default_path = Path(__file__).resolve().parent / "weights" / "mobilenetv3_fruit.pth"
+    default_path = Path(__file__).resolve().parent / "weights" / "final_fruit_resnet.pth"
     model_path = Path(os.getenv("MODEL_PATH", str(default_path)))
 
     device = torch.device("cpu")
 
-    model = models.mobilenet_v3_large(weights=None)
-
-    # Replace classifier for 4 classes
-    model.classifier[3] = nn.Linear(
-        model.classifier[3].in_features,
-        len(LABELS)
-    )
+    model = MultiTaskResNet(num_fruits=len(FRUIT_LABELS), num_ripeness=len(RIPENESS_LABELS))
 
     state = torch.load(model_path, map_location=device)
-
-    # Handle checkpoint vs raw state_dict
-    if "model_state_dict" in state:
+    if isinstance(state, dict) and "model_state_dict" in state:
         state = state["model_state_dict"]
 
     model.load_state_dict(state)

@@ -27,13 +27,24 @@ from database.connect import engine, get_db
 
 from ml.model import get_model
 from ml.download import ensure_model
-from ml.predict import predict_image
+from ml.predict import predict_image_path
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print(">>> lifespan start (process boot)")
     await init_browser()
+
+    print("Installing model")
+    ensure_model()
+
+
+    get_model()
+    print("Model installed")
+
     yield
+
+    print(">>> lifespan shutdown")
     await shutdown_browser()
 
 
@@ -51,10 +62,6 @@ IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/uploads", StaticFiles(directory=IMAGE_DIR), name="uploads")
 
-@app.on_event("startup")
-def _startup():
-    ensure_model()
-    get_model()
 
 @app.get("/hello")
 def hello():
@@ -88,7 +95,7 @@ def upload_image(
     db.refresh(image)
 
     model = get_model()
-    pred = predict_image(model, str(file_path))
+    pred = predict_image_path(model, str(file_path))
 
     return {
         "id": image.id,
