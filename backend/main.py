@@ -5,6 +5,8 @@ load_dotenv()
 import os
 import uuid
 import shutil
+from PIL import Image
+from pillow_heif import register_heif_opener
 from pathlib import Path
 
 from fastapi import FastAPI, Depends, Form, UploadFile, File, HTTPException
@@ -29,6 +31,7 @@ from ml.model import get_model
 from ml.download import ensure_model
 from ml.predict import predict_image_path
 
+register_heif_opener()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -75,12 +78,29 @@ def upload_image(
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid image type")
 
-    ext = os.path.splitext(file.filename)[1] or ".jpg"
+    ext = os.path.splitext(file.filename)[1].lower() or ".jpg"
     filename = f"{uuid.uuid4()}{ext}"
     file_path = IMAGE_DIR / filename
 
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
+
+    # Convert HEIC/HEIF to JPG directly here
+    if file_path.suffix.lower() in [".heic", ".heif"]:
+        img = Image.open(file_path).convert("RGB")
+
+        new_filename = f"{uuid.uuid4()}.jpg"
+        new_path = IMAGE_DIR / new_filename
+
+        img.save(new_path, format="JPEG", quality=92)
+
+        try:
+            file_path.unlink()
+        except Exception:
+            pass
+
+        file_path = new_path
+        filename = new_filename
 
     image = UserImage(
         user_id=user_id,
