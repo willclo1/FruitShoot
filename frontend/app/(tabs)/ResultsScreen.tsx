@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
   Image,
   Pressable,
@@ -21,13 +21,18 @@ const TRACK = "#D9D9D9";
 const THUMB = "#E94B3C";
 
 const RIPENESS_LABELS = ["Unripe", "Ripe", "Overripe", "Spoiled"] as const;
+type RipenessIndex = 0 | 1 | 2 | 3;
 
-function ripenessToIndex(label?: string) {
+function ripenessToIndex(label?: string): RipenessIndex {
   const l = (label || "").toLowerCase();
-  if (l.includes("under")) return 0;
-  if (l === "ripe") return 1;
-  if (l.includes("rot") || l.includes("spo")) return 3;
+
+  // backend labels: "Ripe", "Rotten", "N/A", "Underripe"
+  if (l.includes("under")) return 0; // Underripe -> Unripe
+  if (l === "ripe") return 1; // Ripe -> Ripe
+  if (l.includes("over")) return 2; // Overripe -> Overripe (if ever present)
+  if (l.includes("rot") || l.includes("spo")) return 3; // Rotten/Spoiled -> Spoiled
   if (l === "n/a" || l.includes("na")) return 1;
+
   return 1;
 }
 
@@ -52,8 +57,14 @@ export default function ResultsScreen() {
   const modelRipeness = params.ripeness ?? "N/A";
   const ripenessConfidence = Number(params.ripenessConfidence ?? "0");
 
-  const ripenessIndex = useMemo(() => ripenessToIndex(modelRipeness), [modelRipeness]);
-  const ripenessLabel = useMemo(() => RIPENESS_LABELS[ripenessIndex], [ripenessIndex]);
+  const ripenessIndex: RipenessIndex = useMemo(
+    () => ripenessToIndex(modelRipeness),
+    [modelRipeness]
+  );
+  const ripenessLabel = useMemo(
+    () => RIPENESS_LABELS[ripenessIndex],
+    [ripenessIndex]
+  );
 
   const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL || "";
   const imageUrl = useMemo(() => {
@@ -67,19 +78,19 @@ export default function ResultsScreen() {
   const ripePct = confPct(ripenessConfidence);
 
   const headline = useMemo(() => {
-  switch (ripenessIndex) {
-    case 1:
-      return "Ready to eat";
-    case 0:
-      return "Needs more time";
-    case 2:
-      return "Use soon";
-    case 3:
-      return "Past its prime";
-    default:
-      return "Results";
-  }
-}, [ripenessIndex]);
+    switch (ripenessIndex) {
+      case 1:
+        return "Ready to eat";
+      case 0:
+        return "Needs more time";
+      case 2:
+        return "Use soon";
+      case 3:
+        return "Past its prime";
+      default:
+        return "Results";
+    }
+  }, [ripenessIndex]);
 
   const hint = useMemo(() => {
     switch (ripenessIndex) {
@@ -115,7 +126,10 @@ export default function ResultsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.topRow}>
           <Image
@@ -163,7 +177,9 @@ export default function ResultsScreen() {
             <Text style={styles.infoLabel}>Fruit</Text>
             <Text style={styles.infoValue}>
               {fruit}
-              {fruitPct !== null ? <Text style={styles.infoMuted}>  ·  {fruitPct}%</Text> : null}
+              {fruitPct !== null ? (
+                <Text style={styles.infoMuted}>  ·  {fruitPct}%</Text>
+              ) : null}
             </Text>
           </View>
 
@@ -173,7 +189,9 @@ export default function ResultsScreen() {
             <Text style={styles.infoLabel}>Ripeness</Text>
             <Text style={styles.infoValue}>
               {ripenessLabel}
-              {ripePct !== null ? <Text style={styles.infoMuted}>  ·  {ripePct}%</Text> : null}
+              {ripePct !== null ? (
+                <Text style={styles.infoMuted}>  ·  {ripePct}%</Text>
+              ) : null}
             </Text>
           </View>
         </View>
@@ -182,6 +200,7 @@ export default function ResultsScreen() {
         <View style={styles.ripenessBlock}>
           <Text style={styles.sectionTitle}>Ripeness</Text>
 
+          {/* pointerEvents="none" prevents any interaction */}
           <View style={styles.sliderWrap} pointerEvents="none">
             <Slider
               value={ripenessIndex}
@@ -198,30 +217,25 @@ export default function ResultsScreen() {
           </View>
 
           <View style={styles.stageRow}>
-            {RIPENESS_LABELS.map((label, idx) => (
-              <View
-                key={label}
-                style={[
-                  styles.stagePill,
-                  idx === ripenessIndex && styles.stagePillActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.stageText,
-                    idx === ripenessIndex && styles.stageTextActive,
-                  ]}
+            {RIPENESS_LABELS.map((label, idx) => {
+              const active = (idx as RipenessIndex) === ripenessIndex;
+              return (
+                <View
+                  key={label}
+                  style={[styles.stagePill, active && styles.stagePillActive]}
                 >
-                  {label}
-                </Text>
-              </View>
-            ))}
+                  <Text style={[styles.stageText, active && styles.stageTextActive]}>
+                    {label}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
 
           <Text style={styles.hintText}>{hint}</Text>
         </View>
 
-        {/* Recipes teaser (simple, not a big card) */}
+        {/* Recipes teaser */}
         <View style={styles.recipesRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.sectionTitle}>Recipes</Text>
