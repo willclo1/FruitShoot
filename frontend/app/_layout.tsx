@@ -1,4 +1,3 @@
-// app/_layout.tsx
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -6,13 +5,13 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { SettingsProvider } from "@/services/settingsContext";
 import { useEffect, useRef, useState } from "react";
 import * as SecureStore from "expo-secure-store";
+import { BackHandler } from "react-native";
 import { setAuthed, subscribeAuthed } from "@/services/authState";
 import { useFonts } from "expo-font";
-
+import DisclosureModal from "@/components/disclosureModal";
 
 const LOGIN_ROUTE = "/login";
 const TABS_ROUTE = "/(tabs)";
-
 const LOGIN_REDIRECT_DELAY_MS = 250;
 
 export default function RootLayout() {
@@ -23,18 +22,18 @@ export default function RootLayout() {
 
   const [authChecked, setAuthChecked] = useState(false);
   const [hasToken, setHasToken] = useState(false);
+  const [showDisclosure, setShowDisclosure] = useState(false);
 
   const [fontsLoaded] = useFonts({
-    'Atkinson-Regular': require('../assets/images/fonts/TTF/Atkinson-Hyperlegible-Regular-102.ttf'),
-    'Atkinson-Bold': require('../assets/images/fonts/TTF/Atkinson-Hyperlegible-Bold-102.ttf'),
-    'Atkinson-Italic': require('../assets/images/fonts/TTF/Atkinson-Hyperlegible-Italic-102.ttf'),
-    'Atkinson-BoldItalic': require('../assets/images/fonts/TTF/Atkinson-Hyperlegible-BoldItalic-102.ttf'),
+    "Atkinson-Regular": require("../assets/images/fonts/TTF/Atkinson-Hyperlegible-Regular-102.ttf"),
+    "Atkinson-Bold": require("../assets/images/fonts/TTF/Atkinson-Hyperlegible-Bold-102.ttf"),
+    "Atkinson-Italic": require("../assets/images/fonts/TTF/Atkinson-Hyperlegible-Italic-102.ttf"),
+    "Atkinson-BoldItalic": require("../assets/images/fonts/TTF/Atkinson-Hyperlegible-BoldItalic-102.ttf"),
   });
-
 
   const loginRedirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-
+  // Check token + whether to show disclosure
   useEffect(() => {
     if (!navState?.key) return;
 
@@ -44,6 +43,11 @@ export default function RootLayout() {
       setHasToken(authed);
       setAuthed(authed);
       setAuthChecked(true);
+
+      // Only show disclosure if user is NOT logged in
+      if (!authed) {
+        setShowDisclosure(true);
+      }
     })();
   }, [navState?.key]);
 
@@ -51,16 +55,13 @@ export default function RootLayout() {
     const unsub = subscribeAuthed((authed) => {
       setHasToken(authed);
       setAuthChecked(true);
-
       if (authed && loginRedirectTimer.current) {
         clearTimeout(loginRedirectTimer.current);
         loginRedirectTimer.current = null;
       }
     });
-
     return unsub;
   }, []);
-
 
   useEffect(() => {
     return () => {
@@ -71,7 +72,6 @@ export default function RootLayout() {
     };
   }, []);
 
-
   useEffect(() => {
     if (!navState?.key) return;
     if (!authChecked) return;
@@ -80,15 +80,11 @@ export default function RootLayout() {
     const onAuthScreen = segments[0] === "login" || segments[0] === "register";
 
     if (!hasToken && inTabs) {
-
       if (loginRedirectTimer.current) return;
-
       loginRedirectTimer.current = setTimeout(async () => {
         loginRedirectTimer.current = null;
-
         const token = await SecureStore.getItemAsync("access_token");
         const authed = !!token;
-
         if (!authed) {
           router.replace(LOGIN_ROUTE);
         } else {
@@ -96,13 +92,10 @@ export default function RootLayout() {
           setAuthed(true);
         }
       }, LOGIN_REDIRECT_DELAY_MS);
-
       return;
     }
 
-
     if (hasToken && onAuthScreen) {
-
       if (loginRedirectTimer.current) {
         clearTimeout(loginRedirectTimer.current);
         loginRedirectTimer.current = null;
@@ -111,19 +104,31 @@ export default function RootLayout() {
       return;
     }
 
-
     if (!inTabs && loginRedirectTimer.current) {
       clearTimeout(loginRedirectTimer.current);
       loginRedirectTimer.current = null;
     }
   }, [navState?.key, authChecked, hasToken, segments.join("/")]);
 
- return (
-  <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-    <SettingsProvider>
-      <Stack screenOptions={{ headerShown: false }} />
-      <StatusBar style="auto" />
-    </SettingsProvider>
-  </ThemeProvider>
-);
+  const onAcceptDisclosure = () => {
+    setShowDisclosure(false);
+  };
+
+  const onDeclineDisclosure = () => {
+    BackHandler.exitApp();
+  };
+
+  return (
+    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      <SettingsProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+        <StatusBar style="auto" />
+        <DisclosureModal
+          visible={showDisclosure}
+          onAccept={onAcceptDisclosure}
+          onDecline={onDeclineDisclosure}
+        />
+      </SettingsProvider>
+    </ThemeProvider>
+  );
 }
