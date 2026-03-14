@@ -17,14 +17,15 @@ import { uploadUserImage } from "@/services/images";
 import { getMe } from "@/services/me";
 import { tts } from "@/services/tts";
 import { useSettings } from "@/services/settingsContext";
+import { useFontStyle } from "@/services/settingsContext";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 let uploadIntroSpokenThisSession = false;
 
 export default function UploadScreen() {
   const router = useRouter();
   const { settings, loaded } = useSettings();
+  const { scale, fontRegular, fontBold } = useFontStyle();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [description, setDescription] = useState("");
@@ -36,21 +37,14 @@ export default function UploadScreen() {
   const spokeOnThisMount = useRef(false);
   const isFocused = useRef(false);
   const pendingAutoSpeak = useRef(false);
-
   const prevEnabled = useRef<boolean | null>(null);
   const prevMode = useRef<"auto" | "onDemand" | null>(null);
-
-  // Prevent double-taps / "buggy" feeling while picker opens
   const pickerBusy = useRef(false);
 
   const say = (text: string, interrupt = true) => {
     if (!loaded) return;
     if (!settings.ttsEnabled) return;
-    tts.say(text, {
-      interrupt,
-      rate: settings.ttsRate,
-      pitch: settings.ttsPitch,
-    });
+    tts.say(text, { interrupt, rate: settings.ttsRate, pitch: settings.ttsPitch });
   };
 
   const speakUploadIntro = () => {
@@ -63,43 +57,30 @@ export default function UploadScreen() {
   useFocusEffect(
     React.useCallback(() => {
       isFocused.current = true;
-
       if (pendingAutoSpeak.current) {
         pendingAutoSpeak.current = false;
         speakUploadIntro();
         uploadIntroSpokenThisSession = true;
       }
-
-      return () => {
-        isFocused.current = false;
-      };
+      return () => { isFocused.current = false; };
     }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch])
   );
 
   useEffect(() => {
     if (!loaded) return;
-
     const enabled = settings.ttsEnabled;
     const mode = settings.ttsMode;
-
     const wasEnabled = prevEnabled.current;
     const wasMode = prevMode.current;
-
     prevEnabled.current = enabled;
     prevMode.current = mode;
-
     if (!enabled) return;
 
-    // TTS just turned on
     if (wasEnabled === false && enabled === true) {
       say("Voice guidance enabled.", true);
-
       if (mode === "auto") {
         if (isFocused.current) {
-          setTimeout(() => {
-            speakUploadIntro();
-            uploadIntroSpokenThisSession = true;
-          }, 150);
+          setTimeout(() => { speakUploadIntro(); uploadIntroSpokenThisSession = true; }, 150);
         } else {
           pendingAutoSpeak.current = true;
         }
@@ -107,18 +88,12 @@ export default function UploadScreen() {
       return;
     }
 
-    // Mode switched to auto
     if (wasMode !== "auto" && mode === "auto") {
-      if (isFocused.current) {
-        speakUploadIntro();
-        uploadIntroSpokenThisSession = true;
-      } else {
-        pendingAutoSpeak.current = true;
-      }
+      if (isFocused.current) { speakUploadIntro(); uploadIntroSpokenThisSession = true; }
+      else { pendingAutoSpeak.current = true; }
       return;
     }
 
-    // Mode switched away from auto
     if (wasMode === "auto" && mode !== "auto") {
       pendingAutoSpeak.current = false;
       return;
@@ -126,7 +101,6 @@ export default function UploadScreen() {
 
     if (mode !== "auto") return;
 
-    // First time landing on this screen this session
     if (!uploadIntroSpokenThisSession && !spokeOnThisMount.current) {
       spokeOnThisMount.current = true;
       uploadIntroSpokenThisSession = true;
@@ -142,26 +116,19 @@ export default function UploadScreen() {
         say("Permission needed. Please allow photo library access to select an image.", true);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, settings.ttsEnabled]);
 
   const pickImage = async () => {
-    if (loading) return;
-    if (pickerBusy.current) return;
-
+    if (loading || pickerBusy.current) return;
     try {
       pickerBusy.current = true;
-
-      // Speak without blocking launch
       say("Opening photo library.", true);
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false, // raw image (no crop UI)
-        quality: 0.85,        // faster + still very good
+        allowsEditing: false,
+        quality: 0.85,
         exif: false,
       });
-
       if (!result.canceled) {
         setImageUri(result.assets[0].uri);
         say("Image selected. Press Upload to continue.", true);
@@ -172,28 +139,22 @@ export default function UploadScreen() {
   };
 
   const takePhoto = async () => {
-    if (loading) return;
-    if (pickerBusy.current) return;
-
+    if (loading || pickerBusy.current) return;
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permission required", "Camera permission is required.");
       say("Permission needed. Please allow camera access to take a photo.", true);
       return;
     }
-
     try {
       pickerBusy.current = true;
-
       say("Opening camera.", true);
-      await sleep(150); // tiny delay helps on some devices; not blocking much
-
+      await sleep(150);
       const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: false, // raw image (no crop UI)
+        allowsEditing: false,
         quality: 0.85,
         exif: false,
       });
-
       if (!result.canceled) {
         setImageUri(result.assets[0].uri);
         say("Photo captured. Press Upload to continue.", true);
@@ -205,28 +166,20 @@ export default function UploadScreen() {
 
   const uploadImage = async () => {
     if (!imageUri || loading) return;
-
     try {
       setPhase("uploading");
       say("Uploading image. Please wait.", true);
-
       const me = await getMe();
       if (!me?.id) throw new Error("Could not determine user. Please log in again.");
-
       const data = await uploadUserImage({
         userId: me.id,
         imageUri,
         description: description.trim() || undefined,
       });
-
       setPhase("analyzing");
       say("Analyzing. Please wait.", true);
-
-      // keep UI snappy; don’t stall here
       await sleep(150);
-
       router.push({
-        // Adjust if your route is different
         pathname: "/ResultsScreen",
         params: {
           uploadedUrl: data.url,
@@ -236,7 +189,6 @@ export default function UploadScreen() {
           ripenessConfidence: String(data.prediction?.ripeness_confidence ?? 0),
         },
       });
-
       setImageUri(null);
       setDescription("");
       setPhase("idle");
@@ -262,61 +214,61 @@ export default function UploadScreen() {
           disabled={loading}
           accessibilityRole="button"
           accessibilityLabel="Back"
-          accessibilityHint="Returns to the previous screen"
         >
-          <Text style={[styles.backText, loading && styles.disabledText]}>← Back</Text>
+          <Text style={[styles.backText, loading && styles.disabledText, { fontFamily: fontBold, fontSize: 16 * scale }]}>
+            ← Back
+          </Text>
         </Pressable>
 
         {showReplay && (
           <Pressable
             style={styles.replayButton}
-            onPress={() => {
-              say(
-                imageUri
-                  ? "Upload screen. Image selected. Press Upload to see results."
-                  : "Upload screen. Choose Library or Camera to select an image, then press Upload to see results.",
-                true
-              );
-            }}
+            onPress={() => say(
+              imageUri
+                ? "Upload screen. Image selected. Press Upload to see results."
+                : "Upload screen. Choose Library or Camera to select an image, then press Upload to see results.",
+              true
+            )}
             accessibilityRole="button"
             accessibilityLabel="Replay voice guidance"
-            accessibilityHint="Repeats instructions for this screen"
           >
-            <Text style={styles.replayText}>Replay</Text>
+            <Text style={[styles.replayText, { fontFamily: fontBold, fontSize: 13 * scale }]}>
+              Replay
+            </Text>
           </Pressable>
         )}
       </View>
 
-      <Text style={styles.title}>Upload Fruit Image</Text>
-      <Text style={styles.subtitle}>Choose from your library or take a photo.</Text>
+      <Text style={[styles.title, { fontFamily: fontBold, fontSize: 22 * scale }]}>
+        Upload Fruit Image
+      </Text>
+      <Text style={[styles.subtitle, { fontFamily: fontRegular, fontSize: 14 * scale }]}>
+        Choose from your library or take a photo.
+      </Text>
 
       <View style={styles.buttonRow}>
         <Pressable
-          style={[
-            styles.secondaryBtn,
-            (loading || pickerBusy.current) && styles.btnDisabled,
-          ]}
+          style={[styles.secondaryBtn, (loading || pickerBusy.current) && styles.btnDisabled]}
           onPress={pickImage}
           disabled={loading || pickerBusy.current}
           accessibilityRole="button"
           accessibilityLabel="Library"
-          accessibilityHint="Select an image from your photo library"
         >
-          <Text style={styles.secondaryText}>Library</Text>
+          <Text style={[styles.secondaryText, { fontFamily: fontBold, fontSize: 15 * scale }]}>
+            Library
+          </Text>
         </Pressable>
 
         <Pressable
-          style={[
-            styles.secondaryBtn,
-            (loading || pickerBusy.current) && styles.btnDisabled,
-          ]}
+          style={[styles.secondaryBtn, (loading || pickerBusy.current) && styles.btnDisabled]}
           onPress={takePhoto}
           disabled={loading || pickerBusy.current}
           accessibilityRole="button"
           accessibilityLabel="Camera"
-          accessibilityHint="Take a new photo using the camera"
         >
-          <Text style={styles.secondaryText}>Camera</Text>
+          <Text style={[styles.secondaryText, { fontFamily: fontBold, fontSize: 15 * scale }]}>
+            Camera
+          </Text>
         </Pressable>
       </View>
 
@@ -325,29 +277,30 @@ export default function UploadScreen() {
         onChangeText={setDescription}
         placeholder="Description (optional)"
         placeholderTextColor="#6B7776"
-        style={styles.input}
+        style={[styles.input, { fontFamily: fontRegular, fontSize: 15 * scale }]}
         editable={!loading && !pickerBusy.current}
         accessibilityLabel="Description"
-        accessibilityHint="Optional description for your upload"
       />
 
       {imageUri ? (
-        <Image
-          source={{ uri: imageUri }}
-          style={styles.preview}
-          accessibilityLabel="Selected image preview"
-        />
+        <Image source={{ uri: imageUri }} style={styles.preview} accessibilityLabel="Selected image preview" />
       ) : (
         <View style={styles.placeholder} accessible accessibilityLabel="No image selected">
-          <Text style={styles.placeholderTitle}>No image selected</Text>
-          <Text style={styles.placeholderText}>Pick one above to preview it here.</Text>
+          <Text style={[styles.placeholderTitle, { fontFamily: fontBold, fontSize: 16 * scale }]}>
+            No image selected
+          </Text>
+          <Text style={[styles.placeholderText, { fontFamily: fontRegular, fontSize: 14 * scale }]}>
+            Pick one above to preview it here.
+          </Text>
         </View>
       )}
 
       {loading && (
         <View style={styles.loadingRow} accessibilityLiveRegion="polite">
           <ActivityIndicator />
-          <Text style={styles.loadingText}>{statusText}</Text>
+          <Text style={[styles.loadingText, { fontFamily: fontBold, fontSize: 14 * scale }]}>
+            {statusText}
+          </Text>
         </View>
       )}
 
@@ -357,15 +310,10 @@ export default function UploadScreen() {
         disabled={!canUpload}
         accessibilityRole="button"
         accessibilityLabel="Upload"
-        accessibilityHint="Uploads the selected image and shows results"
       >
-        {loading ? (
-          <Text style={styles.uploadText}>
-            {phase === "uploading" ? "Uploading..." : "Analyzing..."}
-          </Text>
-        ) : (
-          <Text style={styles.uploadText}>Upload</Text>
-        )}
+        <Text style={[styles.uploadText, { fontFamily: fontBold, fontSize: 16 * scale }]}>
+          {loading ? (phase === "uploading" ? "Uploading..." : "Analyzing...") : "Upload"}
+        </Text>
       </Pressable>
     </SafeAreaView>
   );
@@ -381,7 +329,7 @@ const styles = StyleSheet.create({
   },
 
   backRow: { alignSelf: "flex-start", paddingVertical: 8 },
-  backText: { color: "#1F4C47", fontSize: 16, fontWeight: "600" },
+  backText: { color: "#1F4C47", fontWeight: "600" },
   disabledText: { opacity: 0.5 },
 
   replayButton: {
@@ -390,10 +338,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 999,
   },
-  replayText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  replayText: { color: "#fff", fontWeight: "700" },
 
-  title: { color: "#0F1F1D", fontSize: 22, fontWeight: "800", marginTop: 6 },
-  subtitle: { color: "#465251", marginTop: 6, marginBottom: 12, fontSize: 14 },
+  title: { color: "#0F1F1D", fontWeight: "800", marginTop: 6 },
+  subtitle: { color: "#465251", marginTop: 6, marginBottom: 12 },
 
   buttonRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
 
@@ -418,12 +366,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  preview: {
-    width: "100%",
-    height: 320,
-    borderRadius: 14,
-    marginVertical: 14,
-  },
+  preview: { width: "100%", height: 320, borderRadius: 14, marginVertical: 14 },
 
   placeholder: {
     width: "100%",
@@ -437,20 +380,10 @@ const styles = StyleSheet.create({
     marginVertical: 14,
     paddingHorizontal: 16,
   },
-  placeholderTitle: {
-    color: "#0F1F1D",
-    fontWeight: "800",
-    fontSize: 16,
-    marginBottom: 6,
-  },
+  placeholderTitle: { color: "#0F1F1D", fontWeight: "800", marginBottom: 6 },
   placeholderText: { color: "#465251", textAlign: "center" },
 
-  loadingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 12,
-  },
+  loadingRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
   loadingText: { color: "#465251", fontWeight: "700" },
 
   uploadBtn: {
@@ -460,6 +393,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   uploadBtnDisabled: { opacity: 0.45 },
-
-  uploadText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  uploadText: { color: "#fff", fontWeight: "800" },
 });

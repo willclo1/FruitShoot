@@ -7,6 +7,8 @@ import { SettingsProvider } from "@/services/settingsContext";
 import { useEffect, useRef, useState } from "react";
 import * as SecureStore from "expo-secure-store";
 import { setAuthed, subscribeAuthed } from "@/services/authState";
+import { useFonts } from "expo-font";
+
 
 const LOGIN_ROUTE = "/login";
 const TABS_ROUTE = "/(tabs)";
@@ -21,6 +23,14 @@ export default function RootLayout() {
 
   const [authChecked, setAuthChecked] = useState(false);
   const [hasToken, setHasToken] = useState(false);
+
+  const [fontsLoaded] = useFonts({
+    'Atkinson-Regular': require('../assets/images/fonts/TTF/Atkinson-Hyperlegible-Regular-102.ttf'),
+    'Atkinson-Bold': require('../assets/images/fonts/TTF/Atkinson-Hyperlegible-Bold-102.ttf'),
+    'Atkinson-Italic': require('../assets/images/fonts/TTF/Atkinson-Hyperlegible-Italic-102.ttf'),
+    'Atkinson-BoldItalic': require('../assets/images/fonts/TTF/Atkinson-Hyperlegible-BoldItalic-102.ttf'),
+  });
+
 
   const loginRedirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 

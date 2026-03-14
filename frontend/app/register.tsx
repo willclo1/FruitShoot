@@ -14,9 +14,11 @@ import {
 import { useRouter } from "expo-router";
 
 import { register } from "@/services/register";
+import { useFontStyle } from "@/services/settingsContext";
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { scale, fontRegular, fontBold } = useFontStyle();
 
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -37,12 +39,10 @@ export default function RegisterScreen() {
       Alert.alert("Missing info", "Please fill out all fields.");
       return;
     }
-
     if (password !== confirmPassword) {
       Alert.alert("Passwords don't match", "Please re-enter your password.");
       return;
     }
-
     try {
       await register(email.trim().toLowerCase(), password, username.trim());
       router.replace("/(tabs)");
@@ -71,7 +71,9 @@ export default function RegisterScreen() {
           />
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Create Account</Text>
+            <Text style={[styles.cardTitle, { fontFamily: fontBold, fontSize: 16 * scale }]}>
+              Create Account
+            </Text>
 
             <TextInput
               value={email}
@@ -80,7 +82,7 @@ export default function RegisterScreen() {
               placeholderTextColor="#6F6F6F"
               autoCapitalize="none"
               keyboardType="email-address"
-              style={styles.input}
+              style={[styles.input, { fontFamily: fontRegular, fontSize: 16 * scale }]}
               accessibilityLabel="Email"
               accessibilityHint="Enter your email address"
             />
@@ -91,7 +93,7 @@ export default function RegisterScreen() {
               placeholder="Username"
               placeholderTextColor="#6F6F6F"
               autoCapitalize="none"
-              style={styles.input}
+              style={[styles.input, { fontFamily: fontRegular, fontSize: 16 * scale }]}
               accessibilityLabel="Username"
               accessibilityHint="Choose a username"
             />
@@ -102,7 +104,7 @@ export default function RegisterScreen() {
               placeholder="Password"
               placeholderTextColor="#6F6F6F"
               secureTextEntry
-              style={styles.input}
+              style={[styles.input, { fontFamily: fontRegular, fontSize: 16 * scale }]}
               accessibilityLabel="Password"
               accessibilityHint="Enter a password"
             />
@@ -113,7 +115,7 @@ export default function RegisterScreen() {
               placeholder="Confirm Password"
               placeholderTextColor="#6F6F6F"
               secureTextEntry
-              style={styles.input}
+              style={[styles.input, { fontFamily: fontRegular, fontSize: 16 * scale }]}
               accessibilityLabel="Confirm password"
               accessibilityHint="Re-enter your password to confirm"
             />
@@ -128,10 +130,11 @@ export default function RegisterScreen() {
               ]}
               accessibilityRole="button"
               accessibilityLabel="Create account"
-              accessibilityHint="Submits your details and creates your account"
               accessibilityState={{ disabled: !canSubmit }}
             >
-              <Text style={styles.ctaText}>Create Account</Text>
+              <Text style={[styles.ctaText, { fontFamily: fontBold, fontSize: 16 * scale }]}>
+                Create Account
+              </Text>
             </Pressable>
 
             <Pressable
@@ -139,9 +142,10 @@ export default function RegisterScreen() {
               style={styles.backWrap}
               accessibilityRole="button"
               accessibilityLabel="Back to sign in"
-              accessibilityHint="Returns to the login screen"
             >
-              <Text style={styles.backText}>Back to Sign in</Text>
+              <Text style={[styles.backText, { fontFamily: fontBold, fontSize: 14 * scale }]}>
+                Back to Sign in
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -164,11 +168,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
 
-  logo: {
-    width: 200,
-    height: 200,
-    marginBottom: 10,
-  },
+  logo: { width: 200, height: 200, marginBottom: 10 },
 
   card: {
     width: "100%",
@@ -180,7 +180,6 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   cardTitle: {
-    fontSize: 16,
     fontWeight: "800",
     textAlign: "center",
     marginBottom: 12,
@@ -193,40 +192,23 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: INPUT_BG,
     paddingHorizontal: 12,
-    fontSize: 16,
     color: "#111",
     marginBottom: 10,
   },
 
   cta: {
     alignSelf: "center",
-    backgroundColor: "#193F3A",
+    backgroundColor: BRAND,
     paddingVertical: 10,
     paddingHorizontal: 26,
     borderRadius: 10,
     minWidth: 160,
     alignItems: "center",
   },
-  ctaPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.99 }],
-  },
-  ctaDisabled: {
-    opacity: 0.55,
-  },
-  ctaText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "800",
-  },
+  ctaPressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
+  ctaDisabled: { opacity: 0.55 },
+  ctaText: { color: "white", fontWeight: "800" },
 
-  backWrap: {
-    marginTop: 14,
-    alignSelf: "center",
-  },
-  backText: {
-    color: BRAND,
-    fontSize: 14,
-    fontWeight: "700",
-  },
+  backWrap: { marginTop: 14, alignSelf: "center" },
+  backText: { color: BRAND, fontWeight: "700" },
 });
