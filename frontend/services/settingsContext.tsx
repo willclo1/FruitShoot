@@ -81,3 +81,19 @@ export function useFontStyle() {
 
   return { scale, fontRegular, fontBold };
 }
+
+export function useTouchTarget() {
+  const { settings } = useSettings();
+
+  const large = settings.largeTouchTargets;
+
+  return {
+    minHeight: large ? 60 : 44,
+    minWidth: large ? 60 : 44,
+    paddingVertical: large ? 18 : 12,
+    paddingHorizontal: large ? 24 : 16,
+    borderRadius: large ? 16 : 12,
+    iconSize: large ? 32 : 24,
+    fontBoost: large ? 1.1 : 1.0,
+  };
+}

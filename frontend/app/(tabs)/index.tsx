@@ -14,7 +14,7 @@ import * as SecureStore from "expo-secure-store";
 import { setAuthed } from "@/services/authState";
 import { tts } from "@/services/tts";
 import { useSettings } from "@/services/settingsContext";
-import { useFontStyle } from "@/services/settingsContext";
+import { useFontStyle, useTouchTarget } from "@/services/settingsContext";
 
 let homeIntroSpokenThisSession = false;
 
@@ -22,6 +22,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const { settings, loaded } = useSettings();
   const { scale, fontRegular, fontBold } = useFontStyle();
+  const tt = useTouchTarget();
+  const finalScale = scale * tt.fontBoost;
 
   const spokeOnThisMount = useRef(false);
   const isFocused = useRef(false);
@@ -137,12 +139,12 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.topBar}>
         <Pressable
-          style={styles.signOutButton}
+          style={[styles.signOutButton, { minHeight: tt.minHeight, paddingHorizontal: tt.paddingHorizontal }]}
           onPress={onSignOut}
           accessibilityRole="button"
           accessibilityLabel="Sign out"
         >
-          <Text style={[styles.signOutText, { fontFamily: fontBold, fontSize: 13 * scale }]}>
+          <Text style={[styles.signOutText, { fontFamily: fontBold, fontSize: 13 * finalScale }]}>
             Sign Out
           </Text>
         </Pressable>
@@ -150,23 +152,23 @@ export default function HomeScreen() {
         <View style={{ flexDirection: "row", gap: 10 }}>
           {showReplay && (
             <Pressable
-              style={styles.replayButton}
+              style={[styles.replayButton, { minHeight: tt.minHeight, paddingHorizontal: tt.paddingHorizontal }]}
               onPress={() => speak("Home screen. Tap Upload Picture to get started.", true)}
               accessibilityRole="button"
               accessibilityLabel="Replay voice guidance"
             >
-              <Text style={[styles.replayText, { fontFamily: fontBold, fontSize: 13 * scale }]}>
+              <Text style={[styles.replayText, { fontFamily: fontBold, fontSize: 13 * finalScale }]}>
                 Replay
               </Text>
             </Pressable>
           )}
           <Pressable
-            style={styles.settingsButton}
+            style={[styles.settingsButton, { minHeight: tt.minHeight, paddingHorizontal: tt.paddingHorizontal }]}
             onPress={() => router.push("/SettingsScreen")}
             accessibilityRole="button"
             accessibilityLabel="Settings"
           >
-            <Text style={[styles.settingsText, { fontFamily: fontBold, fontSize: 13 * scale }]}>
+            <Text style={[styles.settingsText, { fontFamily: fontBold, fontSize: 13 * finalScale }]}>
               Settings
             </Text>
           </Pressable>
@@ -184,23 +186,31 @@ export default function HomeScreen() {
 
         <View style={styles.buttonStack}>
           <Pressable
-            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+            style={({ pressed }) => [
+              styles.button,
+              { minHeight: tt.minHeight, paddingVertical: tt.paddingVertical, borderRadius: tt.borderRadius },
+              pressed && styles.buttonPressed,
+            ]}
             onPress={onPressUpload}
             accessibilityRole="button"
             accessibilityLabel="Upload Picture"
           >
-            <Text style={[styles.buttonText, { fontFamily: fontBold, fontSize: 16 * scale }]}>
+            <Text style={[styles.buttonText, { fontFamily: fontBold, fontSize: 16 * finalScale }]}>
               Upload Picture
             </Text>
           </Pressable>
 
           <Pressable
-            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+            style={({ pressed }) => [
+              styles.button,
+              { minHeight: tt.minHeight, paddingVertical: tt.paddingVertical, borderRadius: tt.borderRadius },
+              pressed && styles.buttonPressed,
+            ]}
             onPress={onPressInstructions}
             accessibilityRole="button"
             accessibilityLabel="Instructions"
           >
-            <Text style={[styles.buttonText, { fontFamily: fontBold, fontSize: 16 * scale }]}>
+            <Text style={[styles.buttonText, { fontFamily: fontBold, fontSize: 16 * finalScale }]}>
               Instructions
             </Text>
           </Pressable>
@@ -212,7 +222,6 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#FAF7F2" },
-
   topBar: {
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -220,31 +229,33 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-
   settingsButton: {
     backgroundColor: "#193F3A",
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 999,
+    justifyContent: "center",
+    alignItems: "center",
   },
   settingsText: { color: "white", fontWeight: "700" },
-
   replayButton: {
     backgroundColor: "#3B3B3B",
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 999,
+    justifyContent: "center",
+    alignItems: "center",
   },
   replayText: { color: "white", fontWeight: "700" },
-
   signOutButton: {
     backgroundColor: "#8A1F1F",
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 999,
+    justifyContent: "center",
+    alignItems: "center",
   },
   signOutText: { color: "white", fontWeight: "700" },
-
   content: {
     flex: 1,
     alignItems: "center",
@@ -252,10 +263,8 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 24,
   },
-
   logo: { width: 220, height: 220 },
   buttonStack: { width: "100%", maxWidth: 360, gap: 12 },
-
   button: {
     borderRadius: 12,
     paddingVertical: 14,
