@@ -220,6 +220,17 @@ export default function ProfileScreen() {
           <Text style={[styles.sectionTitle, { fontFamily: fontBold, fontSize: 16 * finalScale }]}>Accessibility</Text>
         </View>
 
+        <View style={styles.sectionDivider} />
+
+        <Pressable
+          onPress={() => { tts.say("About Fruitshoot"); router.push("/about-us"); }}
+          style={({ pressed }) => [styles.sectionRow, { minHeight: tt.minHeight }, pressed && styles.linkRowPressed]}
+          accessibilityRole="button" accessibilityLabel="About Fruitshoot"
+        >
+          <Text style={[styles.sectionTitle, { fontFamily: fontBold, fontSize: 16 * finalScale }]}>About Fruitshoot</Text>
+          <Text style={[styles.linkArrow, { fontSize: 18 * finalScale }]}>→</Text>
+        </Pressable>
+
         <View style={styles.sectionDividerTight} />
 
         <Pressable onPress={onLogout} style={[styles.logoutRow, { minHeight: tt.minHeight }]} accessibilityRole="button" accessibilityLabel="Logout">
