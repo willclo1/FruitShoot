@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     backgroundColor: BRAND, 
     paddingVertical: 10, 
     paddingHorizontal: 26, 
-    borderRadius: 10, 
+    borderRadius: 12, 
     minWidth: 160, 
     alignItems: "center" 
   },

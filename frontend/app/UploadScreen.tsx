@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#3B3B3B", 
     paddingVertical: 6, 
     paddingHorizontal: 14, 
-    borderRadius: 999, 
+    borderRadius: 12, 
     justifyContent: "center", 
     alignItems: "center" 
   },
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   secondaryBtn: { 
     flex: 1, backgroundColor: "#1F4C47", 
     paddingVertical: 12, 
-    borderRadius: 10, 
+    borderRadius: 12, 
     alignItems: "center", 
     justifyContent: "center" 
   },
