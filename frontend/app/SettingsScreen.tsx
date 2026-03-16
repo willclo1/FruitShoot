@@ -17,6 +17,11 @@ export default function SettingsScreen() {
   const { settings, setSettings } = useSettings();
 
   const fontScale = settings.largeText ? 1.15 : 1.0;
+  const accessibleFontBoost = settings.accessibleFont ? 1.08 : 1.0;
+  const scale = fontScale * accessibleFontBoost;
+
+  const fontRegular = settings.accessibleFont ? "Atkinson-Regular" : undefined;
+  const fontBold = settings.accessibleFont ? "Atkinson-Bold" : undefined;
 
   const preview = () => {
     if (!settings.ttsEnabled) return;
@@ -30,23 +35,24 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <Pressable onPress={() => router.back()} style={styles.backRow}>
-        <Text style={styles.backText}>← Back</Text>
+        <Text style={[styles.backText, { fontFamily: fontBold }]}>← Back</Text>
       </Pressable>
 
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.title, { fontSize: 22 * fontScale }]}>
+        <Text style={[styles.title, { fontSize: 22 * scale, fontFamily: fontBold }]}>
           Accessibility Settings
         </Text>
 
-        <Text style={[styles.subtitle, { fontSize: 14 * fontScale }]}>
+        <Text style={[styles.subtitle, { fontSize: 14 * scale, fontFamily: fontRegular }]}>
           Adjust voice and touch target sizing.
         </Text>
 
+        {/* TTS Card */}
         <View style={styles.card}>
-          <Text style={[styles.sectionTitle, { fontSize: 14 * fontScale }]}>
+          <Text style={[styles.sectionTitle, { fontSize: 14 * scale, fontFamily: fontBold }]}>
             Text to Speech
           </Text>
 
@@ -57,17 +63,17 @@ export default function SettingsScreen() {
               setSettings((prev) => ({
                 ...prev,
                 ttsEnabled: v,
-                // If turning ON: default to onDemand (no auto speech unless user chooses it)
                 ttsMode: v ? "onDemand" : prev.ttsMode,
               }))
             }
-            fontScale={fontScale}
+            scale={scale}
+            fontFamily={fontBold}
           />
 
           <Divider />
 
           <View style={styles.row}>
-            <Text style={[styles.rowLabel, { fontSize: 16 * fontScale }]}>
+            <Text style={[styles.rowLabel, { fontSize: 16 * scale, fontFamily: fontBold }]}>
               Auto speak on pages
             </Text>
             <Switch
@@ -92,7 +98,8 @@ export default function SettingsScreen() {
             max={1.4}
             step={0.1}
             onChange={(v) => setSettings((prev) => ({ ...prev, ttsRate: v }))}
-            fontScale={fontScale}
+            scale={scale}
+            fontFamily={fontBold}
           />
 
           <Divider />
@@ -105,7 +112,8 @@ export default function SettingsScreen() {
             max={1.3}
             step={0.1}
             onChange={(v) => setSettings((prev) => ({ ...prev, ttsPitch: v }))}
-            fontScale={fontScale}
+            scale={scale}
+            fontFamily={fontBold}
           />
 
           <Divider />
@@ -119,14 +127,15 @@ export default function SettingsScreen() {
             onPress={preview}
             disabled={!settings.ttsEnabled}
           >
-            <Text style={[styles.buttonText, { fontSize: 16 * fontScale }]}>
+            <Text style={[styles.buttonText, { fontSize: 16 * scale, fontFamily: fontBold }]}>
               Play Voice Preview
             </Text>
           </Pressable>
         </View>
 
+        {/* Touch Targets Card */}
         <View style={styles.card}>
-          <Text style={[styles.sectionTitle, { fontSize: 14 * fontScale }]}>
+          <Text style={[styles.sectionTitle, { fontSize: 14 * scale, fontFamily: fontBold }]}>
             Touch Targets
           </Text>
 
@@ -136,17 +145,40 @@ export default function SettingsScreen() {
             onChange={(v) =>
               setSettings((prev) => ({ ...prev, largeTouchTargets: v }))
             }
-            fontScale={fontScale}
+            scale={scale}
+            fontFamily={fontBold}
           />
 
           <Divider />
 
-          <Text style={[styles.helper, { fontSize: 12 * fontScale }]}>
+          <Text style={[styles.helper, { fontSize: 12 * scale, fontFamily: fontRegular }]}>
             Makes buttons larger and easier to tap.
           </Text>
         </View>
 
-        <View style={{ height: 8 }} />
+        {/* Font Card */}
+        <View style={styles.card}>
+          <Text style={[styles.sectionTitle, { fontSize: 14 * scale, fontFamily: fontBold }]}>
+            Font
+          </Text>
+
+          <Row
+            label="Accessible font"
+            value={settings.accessibleFont}
+            onChange={(v) =>
+              setSettings((prev) => ({ ...prev, accessibleFont: v }))
+            }
+            scale={scale}
+            fontFamily={fontBold}
+          />
+
+          <Divider />
+
+          <Text style={[styles.helper, { fontSize: 12 * scale, fontFamily: fontRegular }]}>
+            Switches to Atkinson Hyperlegible, a font designed for low vision readers.
+          </Text>
+        </View>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -156,16 +188,18 @@ function Row({
   label,
   value,
   onChange,
-  fontScale,
+  scale,
+  fontFamily,
 }: {
   label: string;
   value: boolean;
   onChange: (v: boolean) => void;
-  fontScale: number;
+  scale: number;
+  fontFamily?: string;
 }) {
   return (
     <View style={styles.row}>
-      <Text style={[styles.rowLabel, { fontSize: 16 * fontScale }]}>{label}</Text>
+      <Text style={[styles.rowLabel, { fontSize: 16 * scale, fontFamily }]}>{label}</Text>
       <Switch value={value} onValueChange={onChange} />
     </View>
   );
@@ -183,7 +217,8 @@ function Stepper({
   max,
   step,
   onChange,
-  fontScale,
+  scale,
+  fontFamily,
 }: {
   label: string;
   disabled: boolean;
@@ -192,14 +227,15 @@ function Stepper({
   max: number;
   step: number;
   onChange: (v: number) => void;
-  fontScale: number;
+  scale: number;
+  fontFamily?: string;
 }) {
   const dec = () => onChange(Math.max(min, Math.round((value - step) * 10) / 10));
   const inc = () => onChange(Math.min(max, Math.round((value + step) * 10) / 10));
 
   return (
     <View style={{ gap: 10 }}>
-      <Text style={[styles.smallLabel, { fontSize: 13 * fontScale }]}>{label}</Text>
+      <Text style={[styles.smallLabel, { fontSize: 13 * scale, fontFamily }]}>{label}</Text>
 
       <View style={styles.stepRow}>
         <Pressable
@@ -211,11 +247,11 @@ function Stepper({
             disabled && styles.stepBtnDisabled,
           ]}
         >
-          <Text style={styles.stepBtnText}>-</Text>
+          <Text style={[styles.stepBtnText, { fontFamily }]}>-</Text>
         </Pressable>
 
         <View style={styles.stepValueBox}>
-          <Text style={[styles.stepValue, { fontSize: 14 * fontScale }]}>
+          <Text style={[styles.stepValue, { fontSize: 14 * scale, fontFamily }]}>
             {value.toFixed(1)}
           </Text>
         </View>
@@ -229,7 +265,7 @@ function Stepper({
             disabled && styles.stepBtnDisabled,
           ]}
         >
-          <Text style={styles.stepBtnText}>+</Text>
+          <Text style={[styles.stepBtnText, { fontFamily }]}>+</Text>
         </Pressable>
       </View>
     </View>

@@ -25,6 +25,7 @@ import {
 } from "@/services/recipeFormat";
 import { tts } from "@/services/tts";
 import { useSettings } from "@/services/settingsContext";
+import { useFontStyle } from "@/services/settingsContext";
 
 const CAMERA_GREEN = "#1F4C47";
 const CREAM = "#FAF7F2";
@@ -33,10 +34,10 @@ const COOL_GRAY = "#B9C0BE";
 export default function UploadRecipeScreen() {
   const router = useRouter();
   const { settings, loaded } = useSettings();
+  const { scale, fontRegular, fontBold } = useFontStyle();
 
   const [recipeUrl, setRecipeUrl] = useState("");
   const [importing, setImporting] = useState(false);
-
   const [title, setTitle] = useState("");
   const [ingredients, setIngredients] = useState<string[]>([""]);
   const [instructions, setInstructions] = useState<string[]>([""]);
@@ -57,12 +58,9 @@ export default function UploadRecipeScreen() {
     [title, ingredients, instructions, submitting, importing]
   );
 
-  // Auto-announce screen on focus
   useFocusEffect(
     React.useCallback(() => {
-      tts.autoSay(
-        "Upload Recipe screen. Paste a URL to import, or fill in the fields manually."
-      );
+      tts.autoSay("Upload Recipe screen. Paste a URL to import, or fill in the fields manually.");
     }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch])
   );
 
@@ -73,13 +71,10 @@ export default function UploadRecipeScreen() {
       Alert.alert("Import Recipe", "Paste a recipe URL.");
       return;
     }
-
     try {
       setImporting(true);
       tts.say("Importing recipe. Please wait.");
-
       const res = await clipFromUrl({ url, ml_disable: true });
-
       setTitle(res.recipe.title || "");
       setIngredients(parseIngredients(res.recipe.ingredients_description || "").length
         ? parseIngredients(res.recipe.ingredients_description || "")
@@ -87,7 +82,6 @@ export default function UploadRecipeScreen() {
       setInstructions(parseInstructions(res.recipe.instructions_description || "").length
         ? parseInstructions(res.recipe.instructions_description || "")
         : [""]);
-
       tts.say("Recipe imported. Review the fields, then tap Submit.");
       Alert.alert("Import Recipe", "Imported! Review and edit, then submit.");
     } catch (e: any) {
@@ -104,10 +98,7 @@ export default function UploadRecipeScreen() {
 
     if (!title.trim() || !cleanIngredients.length || !cleanInstructions.length) {
       tts.say("Please fill out all fields before submitting.");
-      Alert.alert(
-        "Upload Recipe",
-        "Please fill out title, ingredients, and instructions."
-      );
+      Alert.alert("Upload Recipe", "Please fill out title, ingredients, and instructions.");
       return;
     }
 
@@ -136,10 +127,8 @@ export default function UploadRecipeScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView
-        contentContainerStyle={styles.page}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
+
         <View style={styles.brandHeader}>
           <Image
             source={require("../assets/images/FruitShoot Logo.png")}
@@ -149,29 +138,29 @@ export default function UploadRecipeScreen() {
         </View>
 
         <View style={styles.titleRow}>
-          <Text style={styles.h1}>Upload Recipe</Text>
+          <Text style={[styles.h1, { fontFamily: fontBold, fontSize: 22 * scale }]}>
+            Upload Recipe
+          </Text>
           {showReplay && (
             <Pressable
               style={styles.replayButton}
-              onPress={() =>
-                tts.say(
-                  "Upload Recipe screen. Paste a URL to import, or fill in the title, ingredients, and instructions manually, then tap Submit."
-                )
-              }
+              onPress={() => tts.say("Upload Recipe screen. Paste a URL to import, or fill in the title, ingredients, and instructions manually, then tap Submit.")}
               accessibilityRole="button"
               accessibilityLabel="Replay voice guidance"
-              accessibilityHint="Repeats instructions for this screen"
             >
-              <Text style={styles.replayText}>Replay</Text>
+              <Text style={[styles.replayText, { fontFamily: fontBold, fontSize: 13 * scale }]}>
+                Replay
+              </Text>
             </Pressable>
           )}
         </View>
         <View style={styles.underline} />
 
-        {/* Import from URL */}
-        <Text style={styles.sectionTitle}>Import from URL</Text>
-        <Text style={styles.helperText}>
-          Paste a recipe link and we&apos;ll auto-fill the fields below.
+        <Text style={[styles.sectionTitle, { fontFamily: fontBold, fontSize: 16 * scale }]}>
+          Import from URL
+        </Text>
+        <Text style={[styles.helperText, { fontFamily: fontRegular, fontSize: 13 * scale }]}>
+          Paste a recipe link and we'll auto-fill the fields below.
         </Text>
 
         <TextInput
@@ -179,12 +168,11 @@ export default function UploadRecipeScreen() {
           onChangeText={setRecipeUrl}
           placeholder="https://www.allrecipes.com/recipe/..."
           placeholderTextColor="#66706C"
-          style={styles.input}
+          style={[styles.input, { fontFamily: fontRegular, fontSize: 15 * scale }]}
           autoCapitalize="none"
           autoCorrect={false}
           editable={!importing && !submitting}
           accessibilityLabel="Recipe URL"
-          accessibilityHint="Paste a recipe URL to auto-fill the form"
         />
 
         <Pressable
@@ -197,42 +185,45 @@ export default function UploadRecipeScreen() {
           disabled={!canImport || importing || submitting}
           accessibilityRole="button"
           accessibilityLabel="Import"
-          accessibilityHint="Import recipe from the URL above"
         >
           {importing ? (
             <View style={styles.submitRow}>
               <ActivityIndicator color="#fff" />
-              <Text style={styles.primaryText}>Importing…</Text>
+              <Text style={[styles.primaryText, { fontFamily: fontBold, fontSize: 15 * scale }]}>
+                Importing…
+              </Text>
             </View>
           ) : (
-            <Text style={styles.primaryText}>Import</Text>
+            <Text style={[styles.primaryText, { fontFamily: fontBold, fontSize: 15 * scale }]}>
+              Import
+            </Text>
           )}
         </Pressable>
 
         <View style={styles.divider} />
 
         {/* Manual Entry */}
-        <Text style={styles.label}>Recipe Name</Text>
+        <Text style={[styles.label, { fontFamily: fontBold, fontSize: 14 * scale }]}>Recipe Name</Text>
         <TextInput
           value={title}
           onChangeText={setTitle}
           placeholder="e.g., Banana Bread"
           placeholderTextColor="#66706C"
-          style={styles.input}
+          style={[styles.input, { fontFamily: fontRegular, fontSize: 15 * scale }]}
           editable={!submitting && !importing}
           accessibilityLabel="Recipe title"
         />
 
-        <Text style={styles.label}>Ingredients</Text>
-        <Text style={styles.helperFieldText}>Add or remove ingredient rows as needed.</Text>
+        <Text style={[styles.label, { fontFamily: fontBold, fontSize: 14 * scale }]}>Ingredients</Text>
+        <Text style={[styles.helperFieldText, { fontFamily: fontRegular }]}>Add or remove ingredient rows as needed.</Text>
         <IngredientsInputList
           values={ingredients}
           onChange={setIngredients}
           disabled={submitting || importing}
         />
 
-        <Text style={styles.label}>Instructions</Text>
-        <Text style={styles.helperFieldText}>
+        <Text style={[styles.label, { fontFamily: fontBold, fontSize: 14 * scale }]}>Instructions</Text>
+        <Text style={[styles.helperFieldText, { fontFamily: fontRegular }]}>
           Steps are numbered automatically to match the rest of the recipe UI.
         </Text>
         <NumberedStepsInput
@@ -243,16 +234,15 @@ export default function UploadRecipeScreen() {
 
         <View style={styles.btnRow}>
           <Pressable
-            onPress={() => {
-              tts.say("Cancelled.");
-              router.back();
-            }}
+            onPress={() => { tts.say("Cancelled."); router.back(); }}
             style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
             disabled={submitting || importing}
             accessibilityRole="button"
             accessibilityLabel="Cancel"
           >
-            <Text style={styles.secondaryText}>Cancel</Text>
+            <Text style={[styles.secondaryText, { fontFamily: fontBold, fontSize: 15 * scale }]}>
+              Cancel
+            </Text>
           </Pressable>
 
           <Pressable
@@ -269,13 +259,18 @@ export default function UploadRecipeScreen() {
             {submitting ? (
               <View style={styles.submitRow}>
                 <ActivityIndicator color="#fff" />
-                <Text style={styles.primaryText}>Submitting…</Text>
+                <Text style={[styles.primaryText, { fontFamily: fontBold, fontSize: 15 * scale }]}>
+                  Submitting…
+                </Text>
               </View>
             ) : (
-              <Text style={styles.primaryText}>Submit</Text>
+              <Text style={[styles.primaryText, { fontFamily: fontBold, fontSize: 15 * scale }]}>
+                Submit
+              </Text>
             )}
           </Pressable>
         </View>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -293,8 +288,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-
-  h1: { fontSize: 22, fontWeight: "900", color: CAMERA_GREEN },
+  h1: { fontWeight: "900", color: CAMERA_GREEN },
   underline: {
     height: 2,
     width: 120,
@@ -310,17 +304,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 999,
   },
-  replayText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  replayText: { color: "#fff", fontWeight: "700" },
 
-  sectionTitle: { fontSize: 16, fontWeight: "900", color: "#111", marginTop: 2 },
-  helperText: { marginTop: 6, color: "#333", fontSize: 13, lineHeight: 18 },
+  sectionTitle: { fontWeight: "900", color: "#111", marginTop: 2 },
+  helperText: { marginTop: 6, color: "#333", lineHeight: 18 },
 
-  divider: {
-    height: 1,
-    backgroundColor: COOL_GRAY,
-    marginVertical: 18,
-    opacity: 0.8,
-  },
+  divider: { height: 1, backgroundColor: COOL_GRAY, marginVertical: 18, opacity: 0.8 },
 
   label: { marginTop: 12, fontSize: 14, fontWeight: "800", color: "#111" },
   helperFieldText: {
@@ -374,6 +363,5 @@ const styles = StyleSheet.create({
   primaryText: { color: "white", fontWeight: "900" },
 
   pressed: { opacity: 0.85 },
-
   submitRow: { flexDirection: "row", alignItems: "center", gap: 10 },
 });

@@ -1,4 +1,3 @@
-// app/login.tsx
 import React, { useMemo, useState } from "react";
 import {
   Alert,
@@ -15,9 +14,11 @@ import {
 import { useRouter } from "expo-router";
 
 import { login } from "@/services/login";
+import { useFontStyle } from "@/services/settingsContext";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { scale, fontRegular, fontBold } = useFontStyle();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,7 +32,6 @@ export default function LoginScreen() {
       Alert.alert("Missing info", "Please enter your email and password.");
       return;
     }
-
     try {
       await login(email.trim().toLowerCase(), password);
       router.replace("/(tabs)");
@@ -64,7 +64,9 @@ export default function LoginScreen() {
           />
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Sign in with Email</Text>
+            <Text style={[styles.cardTitle, { fontFamily: fontBold, fontSize: 16 * scale }]}>
+              Sign in with Email
+            </Text>
 
             <TextInput
               value={email}
@@ -73,7 +75,7 @@ export default function LoginScreen() {
               placeholderTextColor="#6F6F6F"
               autoCapitalize="none"
               keyboardType="email-address"
-              style={styles.input}
+              style={[styles.input, { fontFamily: fontRegular, fontSize: 16 * scale }]}
               accessibilityLabel="Email"
               accessibilityHint="Enter your email address"
             />
@@ -84,7 +86,7 @@ export default function LoginScreen() {
               placeholder="Password"
               placeholderTextColor="#6F6F6F"
               secureTextEntry
-              style={styles.input}
+              style={[styles.input, { fontFamily: fontRegular, fontSize: 16 * scale }]}
               accessibilityLabel="Password"
               accessibilityHint="Enter your password"
             />
@@ -94,9 +96,10 @@ export default function LoginScreen() {
               style={styles.forgotWrap}
               accessibilityRole="button"
               accessibilityLabel="Forgot password"
-              accessibilityHint="Opens the password reset flow"
             >
-              <Text style={styles.forgotText}>Forgot Password?</Text>
+              <Text style={[styles.forgotText, { fontFamily: fontRegular, fontSize: 12 * scale }]}>
+                Forgot Password?
+              </Text>
             </Pressable>
 
             <Pressable
@@ -109,10 +112,11 @@ export default function LoginScreen() {
               ]}
               accessibilityRole="button"
               accessibilityLabel="Get started"
-              accessibilityHint="Signs you in and opens the app"
               accessibilityState={{ disabled: !canSubmit }}
             >
-              <Text style={styles.ctaText}>Get Started</Text>
+              <Text style={[styles.ctaText, { fontFamily: fontBold, fontSize: 16 * scale }]}>
+                Get Started
+              </Text>
             </Pressable>
 
             <Pressable
@@ -120,9 +124,10 @@ export default function LoginScreen() {
               style={styles.backWrap}
               accessibilityRole="button"
               accessibilityLabel="Create an account"
-              accessibilityHint="Navigates to the registration screen"
             >
-              <Text style={styles.backText}>Create an account</Text>
+              <Text style={[styles.backText, { fontFamily: fontBold, fontSize: 14 * scale }]}>
+                Create an account
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -145,17 +150,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
 
-  logo: {
-    width: 200,
-    height: 200,
-    marginBottom: 10,
-  },
-  brandText: {
-    fontSize: 34,
-    fontWeight: "800",
-    color: BRAND,
-    marginBottom: 18,
-  },
+  logo: { width: 200, height: 200, marginBottom: 10 },
 
   card: {
     width: "100%",
@@ -167,7 +162,6 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   cardTitle: {
-    fontSize: 16,
     fontWeight: "800",
     textAlign: "center",
     marginBottom: 12,
@@ -180,7 +174,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: INPUT_BG,
     paddingHorizontal: 12,
-    fontSize: 16,
     color: "#111",
     marginBottom: 10,
   },
@@ -190,40 +183,21 @@ const styles = StyleSheet.create({
     marginTop: -2,
     marginBottom: 12,
   },
-  forgotText: {
-    fontSize: 12,
-    color: "#333",
-  },
+  forgotText: { color: "#333" },
 
   cta: {
     alignSelf: "center",
-    backgroundColor: "#193F3A",
+    backgroundColor: BRAND,
     paddingVertical: 10,
     paddingHorizontal: 26,
     borderRadius: 10,
     minWidth: 160,
     alignItems: "center",
   },
-  ctaPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.99 }],
-  },
-  ctaDisabled: {
-    opacity: 0.55,
-  },
-  ctaText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "800",
-  },
+  ctaPressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
+  ctaDisabled: { opacity: 0.55 },
+  ctaText: { color: "white", fontWeight: "800" },
 
-  backWrap: {
-    marginTop: 14,
-    alignSelf: "center",
-  },
-  backText: {
-    color: BRAND,
-    fontSize: 14,
-    fontWeight: "700",
-  },
+  backWrap: { marginTop: 14, alignSelf: "center" },
+  backText: { color: BRAND, fontWeight: "700" },
 });

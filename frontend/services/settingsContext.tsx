@@ -20,6 +20,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     largeText: false,
     reduceMotion: false,
     largeTouchTargets: false,
+    accessibleFont: false
   });
 
   const [loaded, setLoaded] = useState(false);
@@ -66,4 +67,17 @@ export function useSettings() {
   const ctx = useContext(SettingsContext);
   if (!ctx) throw new Error("useSettings must be used inside SettingsProvider");
   return ctx;
+}
+
+export function useFontStyle() {
+  const { settings } = useSettings();
+
+  const fontScale = settings.largeText ? 1.15 : 1.0;
+  const accessibleFontBoost = settings.accessibleFont ? 1.08 : 1.0;
+  const scale = fontScale * accessibleFontBoost;
+
+  const fontRegular = settings.accessibleFont ? "Atkinson-Regular" : undefined;
+  const fontBold = settings.accessibleFont ? "Atkinson-Bold" : undefined;
+
+  return { scale, fontRegular, fontBold };
 }

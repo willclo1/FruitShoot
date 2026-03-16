@@ -14,6 +14,7 @@ import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { RecipeManager } from "@/components/recipe-manager";
 import { tts } from "@/services/tts";
 import { useSettings } from "@/services/settingsContext";
+import { useFontStyle } from "@/services/settingsContext";
 
 const BRAND = "#1F4C47";
 const BG = "#F6F3EE";
@@ -25,13 +26,11 @@ type RipenessIndex = 0 | 1 | 2 | 3;
 
 function ripenessToIndex(label?: string): RipenessIndex {
   const l = (label || "").toLowerCase();
-
   if (l.includes("under")) return 0;
   if (l === "ripe") return 1;
   if (l.includes("over")) return 2;
   if (l.includes("rot") || l.includes("spo")) return 3;
   if (l === "n/a" || l.includes("na")) return 1;
-
   return 1;
 }
 
@@ -42,6 +41,7 @@ function confPct(conf: number) {
 
 export default function ResultsScreen() {
   const { settings, loaded } = useSettings();
+  const { scale, fontRegular, fontBold } = useFontStyle();
 
   const params = useLocalSearchParams<{
     uploadedUrl?: string;
@@ -52,7 +52,6 @@ export default function ResultsScreen() {
   }>();
 
   const fruit = params.fruit ?? "Unknown";
-
   const isNonFruit =
     fruit.toLowerCase().includes("non") ||
     fruit.toLowerCase().includes("background");
@@ -85,114 +84,92 @@ export default function ResultsScreen() {
 
   const headline = useMemo(() => {
     if (isNonFruit) return "Not a fruit";
-
     switch (ripenessIndex) {
-      case 1:
-        return "Ready to eat";
-      case 0:
-        return "Needs more time";
-      case 2:
-        return "Use soon";
-      case 3:
-        return "Past its prime";
-      default:
-        return "Results";
+      case 1: return "Ready to eat";
+      case 0: return "Needs more time";
+      case 2: return "Use soon";
+      case 3: return "Past its prime";
+      default: return "Results";
     }
   }, [ripenessIndex, isNonFruit]);
 
   const hint = useMemo(() => {
     if (isNonFruit) return "This image does not appear to contain fruit.";
-
     switch (ripenessIndex) {
-      case 1:
-        return "Best flavor right now.";
-      case 0:
-        return "Give it a little longer.";
-      case 2:
-        return "Great for smoothies or baking.";
-      case 3:
-        return "Consider composting if it smells off.";
-      default:
-        return "";
+      case 1: return "Best flavor right now.";
+      case 0: return "Give it a little longer.";
+      case 2: return "Great for smoothies or baking.";
+      case 3: return "Consider composting if it smells off.";
+      default: return "";
     }
   }, [ripenessIndex, isNonFruit]);
 
   useFocusEffect(
     React.useCallback(() => {
       tts.autoSay(`Results. ${fruit}. ${headline}.`);
-    }, [
-      loaded,
-      settings.ttsEnabled,
-      settings.ttsMode,
-      settings.ttsRate,
-      settings.ttsPitch,
-      fruit,
-      headline,
-    ])
+    }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch, fruit, headline])
   );
 
   const showReplay = loaded && settings.ttsEnabled;
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.topRow}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+
+        <View style={styles.brandHeader}>
           <Image
             source={require("../../assets/images/FruitShoot Logo.png")}
-            style={styles.logo}
+            style={styles.brandLogo}
             resizeMode="contain"
           />
-
           {showReplay && (
             <Pressable
               style={styles.replayButton}
               onPress={() => tts.say(`Results. ${fruit}. ${headline}.`)}
             >
-              <Text style={styles.replayText}>Replay</Text>
+              <Text style={[styles.replayText, { fontFamily: fontBold, fontSize: 14 * scale }]}>
+                Replay
+              </Text>
             </Pressable>
           )}
         </View>
 
         <View style={styles.hero}>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.heroImage} />
-          ) : (
-            <View style={styles.heroPlaceholder} />
-          )}
-
+          {imageUrl
+            ? <Image source={{ uri: imageUrl }} style={styles.heroImage} />
+            : <View style={styles.heroPlaceholder} />}
           <View style={styles.heroOverlay} />
-
           <View style={styles.heroText}>
-            <Text style={styles.heroFruit}>{fruit}</Text>
-            <Text style={styles.heroHeadline}>{headline}</Text>
+            <Text style={[styles.heroFruit, { fontFamily: fontBold, fontSize: 26 * scale }]}>
+              {fruit}
+            </Text>
+            <Text style={[styles.heroHeadline, { fontFamily: fontBold, fontSize: 16 * scale }]}>
+              {headline}
+            </Text>
           </View>
         </View>
 
         <View style={styles.infoStrip}>
           <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Fruit</Text>
-            <Text style={styles.infoValue}>
+            <Text style={[styles.infoLabel, { fontFamily: fontBold, fontSize: 12 * scale }]}>
+              Fruit
+            </Text>
+            <Text style={[styles.infoValue, { fontFamily: fontBold, fontSize: 18 * scale }]}>
               {fruit}
-              {fruitPct !== null ? (
-                <Text style={styles.infoMuted}> · {fruitPct}%</Text>
-              ) : null}
+              {fruitPct !== null ? <Text style={styles.infoMuted}> · {fruitPct}%</Text> : null}
             </Text>
           </View>
 
           {!isNonFruit && (
             <>
               <View style={styles.divider} />
-
               <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Ripeness</Text>
-                <Text style={styles.infoValue}>
+                <Text style={[styles.infoLabel, { fontFamily: fontBold, fontSize: 12 * scale }]}>
+                  Ripeness
+                </Text>
+                <Text style={[styles.infoValue, { fontFamily: fontBold, fontSize: 18 * scale }]}>
                   {ripenessLabel}
-                  {ripePct !== null ? (
-                    <Text style={styles.infoMuted}> · {ripePct}%</Text>
-                  ) : null}
+                  {ripePct !== null ? <Text style={styles.infoMuted}> · {ripePct}%</Text> : null}
                 </Text>
               </View>
             </>
@@ -201,8 +178,9 @@ export default function ResultsScreen() {
 
         {!isNonFruit && ripenessIndex !== null && (
           <View style={styles.ripenessBlock}>
-            <Text style={styles.sectionTitle}>Ripeness</Text>
-
+            <Text style={[styles.sectionTitle, { fontFamily: fontBold, fontSize: 20 * scale }]}>
+              Ripeness
+            </Text>
             <View style={styles.sliderWrap} pointerEvents="none">
               <Slider
                 value={ripenessIndex}
@@ -215,29 +193,21 @@ export default function ResultsScreen() {
                 thumbTintColor={THUMB}
               />
             </View>
-
             <View style={styles.stageRow}>
               {RIPENESS_LABELS.map((label, idx) => {
                 const active = idx === ripenessIndex;
                 return (
-                  <View
-                    key={label}
-                    style={[styles.stagePill, active && styles.stagePillActive]}
-                  >
-                    <Text
-                      style={[
-                        styles.stageText,
-                        active && styles.stageTextActive,
-                      ]}
-                    >
+                  <View key={label} style={[styles.stagePill, active && styles.stagePillActive]}>
+                    <Text style={[styles.stageText, active && styles.stageTextActive, { fontFamily: fontBold, fontSize: 12 * scale }]}>
                       {label}
                     </Text>
                   </View>
                 );
               })}
             </View>
-
-            <Text style={styles.hintText}>{hint}</Text>
+            <Text style={[styles.hintText, { fontFamily: fontRegular, fontSize: 14 * scale }]}>
+              {hint}
+            </Text>
           </View>
         )}
 
@@ -255,13 +225,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BG },
   container: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 110 },
 
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  logo: { width: 110, height: 110 },
+  brandLogo: { width: 140, height: 140, marginBottom: 6 },
+  brandHeader: { alignItems: "center" },
 
   replayButton: {
     backgroundColor: "#3B3B3B",
@@ -269,7 +234,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 999,
   },
-
   replayText: { color: "#fff", fontWeight: "800" },
 
   hero: {
@@ -279,10 +243,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#E7E1D9",
   },
-
   heroImage: { width: "100%", height: "100%" },
   heroPlaceholder: { width: "100%", height: "100%" },
-
   heroOverlay: {
     position: "absolute",
     bottom: 0,
@@ -291,11 +253,9 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: "rgba(0,0,0,0.38)",
   },
-
   heroText: { position: "absolute", bottom: 14, left: 16 },
-
-  heroFruit: { color: "white", fontSize: 26, fontWeight: "900" },
-  heroHeadline: { color: "white", fontSize: 16, fontWeight: "800" },
+  heroFruit: { color: "white", fontWeight: "900" },
+  heroHeadline: { color: "white", fontWeight: "800" },
 
   infoStrip: {
     marginTop: 14,
@@ -307,36 +267,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-
   infoItem: { flex: 1 },
-
-  infoLabel: {
-    color: "rgba(15,31,29,0.65)",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-
-  infoValue: {
-    marginTop: 6,
-    color: "#0F1F1D",
-    fontSize: 18,
-    fontWeight: "900",
-  },
-
+  infoLabel: { color: "rgba(15,31,29,0.65)", fontWeight: "900" },
+  infoValue: { marginTop: 6, color: "#0F1F1D", fontWeight: "900" },
   infoMuted: { color: "rgba(15,31,29,0.55)" },
-
   divider: { width: 1, height: 34, backgroundColor: "rgba(31,76,71,0.18)" },
 
   ripenessBlock: { marginTop: 18 },
-
   sectionTitle: {
     color: BRAND,
-    fontSize: 20,
     fontWeight: "900",
     textDecorationLine: "underline",
     marginBottom: 10,
   },
-
   sliderWrap: {
     borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.7)",
@@ -344,9 +287,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(31,76,71,0.12)",
     padding: 10,
   },
-
   stageRow: { flexDirection: "row", marginTop: 12, gap: 8 },
-
   stagePill: {
     flex: 1,
     paddingVertical: 10,
@@ -354,19 +295,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(31,76,71,0.08)",
     alignItems: "center",
   },
-
   stagePillActive: { backgroundColor: BRAND },
-
-  stageText: { color: BRAND, fontWeight: "900", fontSize: 12 },
-
+  stageText: { color: BRAND, fontWeight: "900" },
   stageTextActive: { color: "white" },
-
-  hintText: {
-    marginTop: 10,
-    color: "rgba(15,31,29,0.72)",
-    fontSize: 14,
-    fontWeight: "700",
-  },
+  hintText: { marginTop: 10, color: "rgba(15,31,29,0.72)", fontWeight: "700" },
 
   recipesBlock: {
     marginTop: 18,
@@ -376,4 +308,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(31,76,71,0.1)",
   },
+
 });
