@@ -15,6 +15,7 @@ import * as SecureStore from "expo-secure-store";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 
+import { RecipeManager } from "@/components/recipe-manager";
 import { getMe, type Me } from "@/services/me";
 import { setAuthed } from "@/services/authState";
 import { tts } from "@/services/tts";
@@ -296,11 +297,7 @@ export default function ProfileScreen() {
           </Text>
 
           <View style={styles.bigCardBody}>
-            <Text style={styles.placeholderText}>
-              {tab === "uploads"
-                ? "Your recent uploads will show here (coming soon)."
-                : "Your saved recipes will show here (coming soon)."}
-            </Text>
+            <RecipeManager title={tab === "uploads" ? "My Recipe Collection" : "Saved Recipes"} />
           </View>
         </View>
 
@@ -308,15 +305,31 @@ export default function ProfileScreen() {
 
         <Pressable
           onPress={() => {
-            tts.say("Upload Recipe.");
+            tts.say("Create Recipe.");
+            router.push("/create-recipe");
+          }}
+          style={({ pressed }) => [styles.sectionRow, pressed && styles.linkRowPressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Create Recipe"
+          accessibilityHint="Navigate to the dedicated recipe creation page"
+        >
+          <Text style={styles.sectionTitle}>Create Recipe</Text>
+          <Text style={styles.linkArrow}>→</Text>
+        </Pressable>
+
+        <View style={styles.sectionDivider} />
+
+        <Pressable
+          onPress={() => {
+            tts.say("Import Recipe.");
             router.push("/upload-recipe");
           }}
           style={({ pressed }) => [styles.sectionRow, pressed && styles.linkRowPressed]}
           accessibilityRole="button"
-          accessibilityLabel="Upload Recipe"
+          accessibilityLabel="Import Recipe"
           accessibilityHint="Navigate to the upload recipe screen"
         >
-          <Text style={styles.sectionTitle}>Upload Recipe</Text>
+          <Text style={styles.sectionTitle}>Import Recipe</Text>
           <Text style={styles.linkArrow}>→</Text>
         </Pressable>
 

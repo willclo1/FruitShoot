@@ -1,3 +1,9 @@
+import sys
+import asyncio
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from auth.deps import get_current_user
 from dotenv import load_dotenv
 load_dotenv()
@@ -9,10 +15,12 @@ from PIL import Image
 from pillow_heif import register_heif_opener
 from pathlib import Path
 
-from fastapi import FastAPI, Depends, Form, UploadFile, File, HTTPException
+from fastapi import FastAPI, Depends, Form, UploadFile, File, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -51,6 +59,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="FruitShoot API", lifespan=lifespan)
 Base.metadata.create_all(bind=engine)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Keep 422 semantics, but surface actionable field-level errors in server logs.
+    errors = exc.errors()
+    print(f"422 validation error on {request.method} {request.url.path}: {errors}")
+    return JSONResponse(status_code=422, content={"detail": errors})
 
 app.include_router(userRoutes.router)
 app.include_router(clip_router) 
