@@ -12,9 +12,17 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
-import * as SecureStore from "expo-secure-store";
 
+import { IngredientsInputList } from "@/components/ingredients-input-list";
+import { NumberedStepsInput } from "@/components/numbered-steps-input";
 import { clipFromUrl } from "@/services/clip";
+import { createRecipe } from "@/services/recipes";
+import {
+  ingredientsToDescription,
+  instructionsToDescription,
+  parseIngredients,
+  parseInstructions,
+} from "@/services/recipeFormat";
 import { tts } from "@/services/tts";
 import { useSettings } from "@/services/settingsContext";
 import { useFontStyle } from "@/services/settingsContext";
@@ -28,13 +36,11 @@ export default function UploadRecipeScreen() {
   const { settings, loaded } = useSettings();
   const { scale, fontRegular, fontBold } = useFontStyle();
 
-  const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL;
-
   const [recipeUrl, setRecipeUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [title, setTitle] = useState("");
-  const [ingredients, setIngredients] = useState("");
-  const [instructions, setInstructions] = useState("");
+  const [ingredients, setIngredients] = useState<string[]>([""]);
+  const [instructions, setInstructions] = useState<string[]>([""]);
   const [submitting, setSubmitting] = useState(false);
 
   const canImport = useMemo(
@@ -45,8 +51,8 @@ export default function UploadRecipeScreen() {
   const canSubmit = useMemo(
     () =>
       title.trim().length > 0 &&
-      ingredients.trim().length > 0 &&
-      instructions.trim().length > 0 &&
+      ingredients.some((item) => item.trim().length > 0) &&
+      instructions.some((item) => item.trim().length > 0) &&
       !submitting &&
       !importing,
     [title, ingredients, instructions, submitting, importing]
@@ -70,8 +76,13 @@ export default function UploadRecipeScreen() {
       tts.say("Importing recipe. Please wait.");
       const res = await clipFromUrl({ url, ml_disable: true });
       setTitle(res.recipe.title || "");
-      setIngredients(res.recipe.ingredients_description || "");
-      setInstructions(res.recipe.instructions_description || "");
+      setIngredients(parseIngredients(res.recipe.ingredients_description || "").length
+        ? parseIngredients(res.recipe.ingredients_description || "")
+        : [""]);
+      setInstructions(parseInstructions(res.recipe.instructions_description || "").length
+        ? parseInstructions(res.recipe.instructions_description || "")
+        : [""]);
+
       tts.say("Recipe imported. Review the fields, then tap Submit.");
       Alert.alert("Import Recipe", "Imported! Review and edit, then submit.");
     } catch (e: any) {
@@ -83,29 +94,25 @@ export default function UploadRecipeScreen() {
   };
 
   const onSubmit = async () => {
-    if (!API_BASE) { Alert.alert("Config", "Missing EXPO_PUBLIC_API_BASE_URL."); return; }
-    if (!title.trim() || !ingredients.trim() || !instructions.trim()) {
+    const cleanIngredients = ingredients.map((item) => item.trim()).filter(Boolean);
+    const cleanInstructions = instructions.map((item) => item.trim()).filter(Boolean);
+
+    if (!title.trim() || !cleanIngredients.length || !cleanInstructions.length) {
       tts.say("Please fill out all fields before submitting.");
       Alert.alert("Upload Recipe", "Please fill out title, ingredients, and instructions.");
       return;
     }
-    const token = await SecureStore.getItemAsync("access_token");
-    if (!token) { Alert.alert("Auth", "Missing access token. Please log in again."); return; }
+
     try {
       setSubmitting(true);
       tts.say("Submitting recipe. Please wait.");
-      const payload = {
-        title: title.trim(),
-        ingredients_description: ingredients.trim(),
-        instructions_description: instructions.trim(),
-      };
-      const res = await fetch(`${API_BASE}/recipes/`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) { const text = await res.text(); throw new Error(text || "Create recipe failed"); }
-      await res.json().catch(() => null);
+
+      await createRecipe(
+        title.trim(),
+        ingredientsToDescription(cleanIngredients),
+        instructionsToDescription(cleanInstructions)
+      );
+
       tts.say("Recipe submitted successfully.");
       Alert.alert("Upload Recipe", "Recipe submitted!");
       router.back();
@@ -161,7 +168,7 @@ export default function UploadRecipeScreen() {
           value={recipeUrl}
           onChangeText={setRecipeUrl}
           placeholder="https://www.allrecipes.com/recipe/..."
-          placeholderTextColor="#666"
+          placeholderTextColor="#66706C"
           style={[styles.input, { fontFamily: fontRegular, fontSize: 15 * scale }]}
           autoCapitalize="none"
           autoCorrect={false}
@@ -196,43 +203,34 @@ export default function UploadRecipeScreen() {
 
         <View style={styles.divider} />
 
-        <Text style={[styles.label, { fontFamily: fontBold, fontSize: 14 * scale }]}>Title</Text>
+        {/* Manual Entry */}
+        <Text style={[styles.label, { fontFamily: fontBold, fontSize: 14 * scale }]}>Recipe Name</Text>
         <TextInput
           value={title}
           onChangeText={setTitle}
           placeholder="e.g., Banana Bread"
-          placeholderTextColor="#666"
+          placeholderTextColor="#66706C"
           style={[styles.input, { fontFamily: fontRegular, fontSize: 15 * scale }]}
           editable={!submitting && !importing}
           accessibilityLabel="Recipe title"
         />
 
-        <Text style={[styles.label, { fontFamily: fontBold, fontSize: 14 * scale }]}>
-          Ingredients
-        </Text>
-        <TextInput
-          value={ingredients}
-          onChangeText={setIngredients}
-          placeholder="One per line..."
-          placeholderTextColor="#666"
-          style={[styles.input, styles.multiline, { fontFamily: fontRegular, fontSize: 15 * scale }]}
-          multiline
-          editable={!submitting && !importing}
-          accessibilityLabel="Ingredients"
+        <Text style={[styles.label, { fontFamily: fontBold, fontSize: 14 * scale }]}>Ingredients</Text>
+        <Text style={[styles.helperFieldText, { fontFamily: fontRegular }]}>Add or remove ingredient rows as needed.</Text>
+        <IngredientsInputList
+          values={ingredients}
+          onChange={setIngredients}
+          disabled={submitting || importing}
         />
 
-        <Text style={[styles.label, { fontFamily: fontBold, fontSize: 14 * scale }]}>
-          Instructions
+        <Text style={[styles.label, { fontFamily: fontBold, fontSize: 14 * scale }]}>Instructions</Text>
+        <Text style={[styles.helperFieldText, { fontFamily: fontRegular }]}>
+          Steps are numbered automatically to match the rest of the recipe UI.
         </Text>
-        <TextInput
-          value={instructions}
-          onChangeText={setInstructions}
-          placeholder="Steps..."
-          placeholderTextColor="#666"
-          style={[styles.input, styles.multiline, { fontFamily: fontRegular, fontSize: 15 * scale }]}
-          multiline
-          editable={!submitting && !importing}
-          accessibilityLabel="Instructions"
+        <NumberedStepsInput
+          steps={instructions}
+          onChange={setInstructions}
+          disabled={submitting || importing}
         />
 
         <View style={styles.btnRow}>
@@ -314,18 +312,25 @@ const styles = StyleSheet.create({
 
   divider: { height: 1, backgroundColor: COOL_GRAY, marginVertical: 18, opacity: 0.8 },
 
-  label: { marginTop: 12, fontWeight: "800", color: "#111" },
+  label: { marginTop: 12, fontSize: 14, fontWeight: "800", color: "#111" },
+  helperFieldText: {
+    marginTop: 6,
+    color: "rgba(14,29,27,0.58)",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "600",
+  },
   input: {
     marginTop: 8,
-    backgroundColor: "#E5E5E5",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: "#F2F3F0",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
     borderWidth: 1,
-    borderColor: COOL_GRAY,
+    borderColor: "rgba(31,76,71,0.12)",
     color: "#111",
   },
-  multiline: { minHeight: 110, textAlignVertical: "top" },
 
   importBtn: {
     marginTop: 12,

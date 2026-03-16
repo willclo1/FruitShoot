@@ -7,11 +7,11 @@ import {
   StyleSheet,
   Text,
   View,
-  Alert,
 } from "react-native";
 import Slider from "@react-native-community/slider";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 
+import { RecipeManager } from "@/components/recipe-manager";
 import { tts } from "@/services/tts";
 import { useSettings } from "@/services/settingsContext";
 import { useFontStyle } from "@/services/settingsContext";
@@ -211,26 +211,8 @@ export default function ResultsScreen() {
           </View>
         )}
 
-        <View style={styles.recipesRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.sectionTitle, { fontFamily: fontBold, fontSize: 20 * scale }]}>
-              Recipes
-            </Text>
-            <Text style={[styles.recipesSub, { fontFamily: fontRegular, fontSize: 13 * scale }]}>
-              Coming soon
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => {
-              tts.say("Recipes are coming soon.");
-              Alert.alert("Recipes", "Recipe suggestions are coming soon.");
-            }}
-            style={styles.linkButton}
-          >
-            <Text style={[styles.linkText, { fontFamily: fontBold, fontSize: 13 * scale }]}>
-              See more
-            </Text>
-          </Pressable>
+        <View style={styles.recipesBlock}>
+          <RecipeManager title="Recipes" currentFruit={fruit} />
         </View>
 
         <View style={{ height: 28 }} />
@@ -318,22 +300,13 @@ const styles = StyleSheet.create({
   stageTextActive: { color: "white" },
   hintText: { marginTop: 10, color: "rgba(15,31,29,0.72)", fontWeight: "700" },
 
-  recipesRow: {
+  recipesBlock: {
     marginTop: 18,
     padding: 14,
     borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.6)",
     borderWidth: 1,
     borderColor: "rgba(31,76,71,0.1)",
-    flexDirection: "row",
-    alignItems: "center",
   },
-  recipesSub: { marginTop: 6, color: "rgba(15,31,29,0.65)" },
-  linkButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    backgroundColor: "rgba(233,75,60,0.14)",
-  },
-  linkText: { color: "#B0342B", fontWeight: "900" },
+
 });

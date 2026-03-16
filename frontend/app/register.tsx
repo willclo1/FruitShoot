@@ -39,12 +39,32 @@ export default function RegisterScreen() {
       Alert.alert("Missing info", "Please fill out all fields.");
       return;
     }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const trimmedUsername = username.trim();
+    const trimmedPassword = password.trim();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      Alert.alert("Invalid email", "Please enter a valid email address.");
+      return;
+    }
+
+    if (trimmedUsername.length < 3) {
+      Alert.alert("Invalid username", "Username must be at least 3 characters.");
+      return;
+    }
+
+    if (trimmedPassword.length < 8) {
+      Alert.alert("Weak password", "Password must be at least 8 characters.");
+      return;
+    }
+
     if (password !== confirmPassword) {
       Alert.alert("Passwords don't match", "Please re-enter your password.");
       return;
     }
     try {
-      await register(email.trim().toLowerCase(), password, username.trim());
+      await register(normalizedEmail, password, trimmedUsername);
       router.replace("/(tabs)");
     } catch (e: any) {
       Alert.alert("Register failed", e.message || "Could not create account");

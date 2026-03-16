@@ -14,6 +14,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter, useFocusEffect } from "expo-router";
 
 import { uploadUserImage } from "@/services/images";
+import { addFruitToInventory } from "@/services/inventory";
 import { getMe } from "@/services/me";
 import { tts } from "@/services/tts";
 import { useSettings } from "@/services/settingsContext";
@@ -176,6 +177,11 @@ export default function UploadScreen() {
         imageUri,
         description: description.trim() || undefined,
       });
+
+      if (data.prediction?.fruit) {
+        await addFruitToInventory(data.prediction.fruit);
+      }
+
       setPhase("analyzing");
       say("Analyzing. Please wait.", true);
       await sleep(150);
