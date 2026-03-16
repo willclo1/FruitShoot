@@ -112,11 +112,21 @@ export default function AboutUsScreen() {
         contentContainerStyle={styles.page}
         showsVerticalScrollIndicator={false}
       >
+        <Pressable
+                      onPress={() => router.back()}
+                      accessibilityRole="button"
+                      accessibilityLabel="Go back"
+                      style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
+                    >
+                      <Ionicons name="chevron-back" size={22} color={BORDER} />
+                      <Text style={[styles.backText, { fontFamily: fontBold, fontSize: 16 * scale }]}>
+                        Back
+                      </Text>
+            </Pressable>
         <View style={styles.brandHeader}>
           <Image source={require("../assets/images/FruitShoot Logo.png")} style={styles.brandLogo} resizeMode="contain" />
         </View>
         <View style={styles.headerRow}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
             <Text style={[styles.title, { fontFamily: fontBold, fontSize: 22 * finalScale }]}>
               About Fruitshoot
             </Text>
@@ -135,7 +145,6 @@ export default function AboutUsScreen() {
                 </Text>
               </Pressable>
             )}
-          </View>
           <View style={styles.headerUnderline} />
         </View>
 
@@ -209,7 +218,9 @@ const APPLE_RED = "#E94B3C";
 const LEAF_GREEN = "#7BC96F";
 const CREAM = "#FAF7F2";
 const COOL_GRAY = "#B9C0BE";
+const BORDER = "1F4A44";
 const PAGE_PAD = 22;
+
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: CREAM },
@@ -236,6 +247,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   replayText: { color: "#fff", fontWeight: "700" },
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    width: 60,
+    paddingVertical: 6,
+  },
+  backText: { color: BORDER, fontWeight: "600" },
 
   card: {
     marginTop: 18,
@@ -270,7 +289,6 @@ const styles = StyleSheet.create({
   linkText: { color: CAMERA_GREEN },
   linkArrow: { fontWeight: "900", color: CAMERA_GREEN },
 
-  // Team list
   memberRow: {
     flexDirection: "row",
     alignItems: "center",
