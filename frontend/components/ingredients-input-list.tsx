@@ -7,7 +7,11 @@ type Props = {
   disabled?: boolean;
 };
 
-export function IngredientsInputList({ values, onChange, disabled = false }: Props) {
+export function IngredientsInputList({
+  values,
+  onChange,
+  disabled = false,
+}: Props) {
   const updateAt = (index: number, value: string) => {
     const next = [...values];
     next[index] = value;
@@ -31,9 +35,10 @@ export function IngredientsInputList({ values, onChange, disabled = false }: Pro
               value={ingredient}
               onChangeText={(text) => updateAt(idx, text)}
               placeholder={`Ingredient ${idx + 1}`}
-              placeholderTextColor="#66706C"
+              placeholderTextColor="#7A847F"
               style={styles.input}
               editable={!disabled}
+              returnKeyType="done"
             />
           </View>
 
@@ -54,7 +59,10 @@ export function IngredientsInputList({ values, onChange, disabled = false }: Pro
       ))}
 
       <Pressable
-        style={({ pressed }) => [styles.addButton, (disabled || pressed) && styles.pressed]}
+        style={({ pressed }) => [
+          styles.addButton,
+          (disabled || pressed) && styles.pressed,
+        ]}
         onPress={addItem}
         disabled={disabled}
         accessibilityRole="button"
@@ -67,29 +75,37 @@ export function IngredientsInputList({ values, onChange, disabled = false }: Pro
 }
 
 const styles = StyleSheet.create({
-  block: { marginTop: 8, gap: 10 },
-  row: { gap: 8 },
+  block: {
+    marginTop: 10,
+    gap: 12,
+  },
+
+  row: {
+    gap: 8,
+  },
 
   inputShell: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#F3F4F0",
+    backgroundColor: "#F5F6F2",
     borderWidth: 1,
-    borderColor: "rgba(31,76,71,0.1)",
-    borderRadius: 14,
-    paddingHorizontal: 12,
+    borderColor: "rgba(31,76,71,0.10)",
+    borderRadius: 16,
+    paddingHorizontal: 13,
+    minHeight: 52,
   },
+
   bulletDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 9,
+    height: 9,
+    borderRadius: 999,
     backgroundColor: "#8FA49C",
   },
 
   input: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 13,
     color: "#111",
     fontSize: 14,
   },
@@ -97,26 +113,41 @@ const styles = StyleSheet.create({
   addButton: {
     alignSelf: "flex-start",
     borderRadius: 999,
-    backgroundColor: "#E6ECE7",
+    backgroundColor: "#EAF0EB",
     borderWidth: 1,
     borderColor: "rgba(31,76,71,0.08)",
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    marginTop: 4,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    marginTop: 2,
   },
-  addText: { color: "#28423D", fontWeight: "800", fontSize: 12 },
+
+  addText: {
+    color: "#28423D",
+    fontWeight: "800",
+    fontSize: 12,
+  },
 
   removeButton: {
     alignSelf: "flex-start",
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(159,112,97,0.24)",
-    backgroundColor: "#F6ECE8",
+    borderColor: "rgba(159,112,97,0.20)",
+    backgroundColor: "#F8EFEB",
     paddingHorizontal: 11,
     paddingVertical: 7,
   },
-  removeButtonDisabled: { opacity: 0.4 },
-  removeText: { color: "#8D4D42", fontWeight: "700", fontSize: 12 },
 
-  pressed: { opacity: 0.8 },
+  removeButtonDisabled: {
+    opacity: 0.4,
+  },
+
+  removeText: {
+    color: "#8D4D42",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+
+  pressed: {
+    opacity: 0.8,
+  },
 });

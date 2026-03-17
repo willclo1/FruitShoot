@@ -7,7 +7,11 @@ type Props = {
   disabled?: boolean;
 };
 
-export function NumberedStepsInput({ steps, onChange, disabled = false }: Props) {
+export function NumberedStepsInput({
+  steps,
+  onChange,
+  disabled = false,
+}: Props) {
   const updateAt = (index: number, value: string) => {
     const next = [...steps];
     next[index] = value;
@@ -34,10 +38,12 @@ export function NumberedStepsInput({ steps, onChange, disabled = false }: Props)
               <TextInput
                 value={step}
                 onChangeText={(text) => updateAt(idx, text)}
-                placeholder={`Step ${idx + 1}`}
-                placeholderTextColor="#66706C"
+                placeholder={`Describe step ${idx + 1}`}
+                placeholderTextColor="#7A847F"
                 style={styles.input}
                 editable={!disabled}
+                multiline
+                textAlignVertical="top"
               />
             </View>
 
@@ -59,7 +65,10 @@ export function NumberedStepsInput({ steps, onChange, disabled = false }: Props)
       ))}
 
       <Pressable
-        style={({ pressed }) => [styles.addButton, (disabled || pressed) && styles.pressed]}
+        style={({ pressed }) => [
+          styles.addButton,
+          (disabled || pressed) && styles.pressed,
+        ]}
         onPress={addStep}
         disabled={disabled}
         accessibilityRole="button"
@@ -72,33 +81,49 @@ export function NumberedStepsInput({ steps, onChange, disabled = false }: Props)
 }
 
 const styles = StyleSheet.create({
-  block: { marginTop: 8, gap: 10 },
-  row: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
+  block: {
+    marginTop: 10,
+    gap: 12,
+  },
+
+  row: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "flex-start",
+  },
 
   stepLabelWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 999,
     backgroundColor: "#E7ECE7",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 8,
+    marginTop: 10,
   },
+
   stepLabel: {
     fontSize: 12,
     fontWeight: "900",
     color: "#27423D",
   },
 
-  inputWrap: { flex: 1, gap: 6 },
-  inputShell: {
-    backgroundColor: "#F3F4F0",
-    borderWidth: 1,
-    borderColor: "rgba(31,76,71,0.1)",
-    borderRadius: 14,
-    paddingHorizontal: 12,
+  inputWrap: {
+    flex: 1,
+    gap: 7,
   },
+
+  inputShell: {
+    backgroundColor: "#F5F6F2",
+    borderWidth: 1,
+    borderColor: "rgba(31,76,71,0.10)",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingTop: 2,
+  },
+
   input: {
+    minHeight: 74,
     paddingVertical: 12,
     color: "#111",
     fontSize: 14,
@@ -107,26 +132,41 @@ const styles = StyleSheet.create({
   addButton: {
     alignSelf: "flex-start",
     borderRadius: 999,
-    backgroundColor: "#E6ECE7",
+    backgroundColor: "#EAF0EB",
     borderWidth: 1,
     borderColor: "rgba(31,76,71,0.08)",
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    marginTop: 4,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    marginTop: 2,
   },
-  addText: { color: "#28423D", fontWeight: "800", fontSize: 12 },
+
+  addText: {
+    color: "#28423D",
+    fontWeight: "800",
+    fontSize: 12,
+  },
 
   removeButton: {
     alignSelf: "flex-start",
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(159,112,97,0.24)",
-    backgroundColor: "#F6ECE8",
+    borderColor: "rgba(159,112,97,0.20)",
+    backgroundColor: "#F8EFEB",
     paddingHorizontal: 11,
     paddingVertical: 7,
   },
-  removeButtonDisabled: { opacity: 0.4 },
-  removeText: { color: "#8D4D42", fontWeight: "700", fontSize: 12 },
 
-  pressed: { opacity: 0.8 },
+  removeButtonDisabled: {
+    opacity: 0.4,
+  },
+
+  removeText: {
+    color: "#8D4D42",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+
+  pressed: {
+    opacity: 0.8,
+  },
 });
