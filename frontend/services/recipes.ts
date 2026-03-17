@@ -75,3 +75,42 @@ export async function deleteRecipe(id: number): Promise<void> {
     throw new Error(data?.detail || "Failed to delete recipe");
   }
 }
+
+export type PublicRecipe = {
+  id: number;
+  user_id: number;
+  title: string;
+  ingredients_description: string;
+  instructions_description: string;
+  created_at: string;
+  is_saved: boolean;
+  save_count: number;
+};
+
+export async function getPublicRecipe(recipeId: number): Promise<PublicRecipe> {
+  const res = await apiFetch(`/recipes/public/${recipeId}`, {
+    method: "GET",
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(data?.detail || "Failed to load recipe");
+  }
+
+  return data;
+}
+
+export async function getRecipe(recipeId: number): Promise<Recipe> {
+  const res = await apiFetch(`/recipes/${recipeId}`, {
+    method: "GET",
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(data?.detail || "Failed to load recipe");
+  }
+
+  return data;
+}

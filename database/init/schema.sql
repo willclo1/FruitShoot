@@ -43,3 +43,21 @@ ADD CONSTRAINT fk_user_images
 FOREIGN KEY (profile_id)
 REFERENCES images(id)
 ON DELETE SET NULL;
+
+
+CREATE TABLE saved_recipes (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  recipe_id BIGINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_saved_recipes_user_recipe (user_id, recipe_id),
+  KEY idx_saved_recipes_user (user_id),
+  KEY idx_saved_recipes_recipe (recipe_id),
+  CONSTRAINT fk_saved_recipes_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_saved_recipes_recipe
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
