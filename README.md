@@ -202,8 +202,79 @@ Paste into:
 ```bash
 cat ~/github_deploy
 ```
+---
+## Seeding Test Data
+
+FruitShoot uses the same seeding process for both local and production because the backend runs entirely inside Docker.
+
+### Seed Command
+
+Run this from the project root after containers are running:
+
+```bash
+docker exec -it fruitshoot-backend python -m scripts.seed_test_data
+```
 
 ---
+
+## Local Seeding
+
+1. Start containers:
+
+```bash
+docker compose up -d --build
+```
+
+2. Seed the database:
+
+```bash
+docker exec -it fruitshoot-backend python -m scripts.seed_test_data
+```
+
+---
+
+## Production Seeding
+
+1. Start containers on server:
+
+```bash
+docker compose up -d --build
+```
+
+2. Seed the database:
+
+```bash
+docker exec -it fruitshoot-backend python -m scripts.seed_test_data
+```
+
+---
+
+## Verify Seed Data
+
+Connect to MySQL:
+
+```bash
+docker exec -it fruitshoot-mysql mysql -u appuser -pfshoot fruitshoot
+```
+
+Run:
+
+```sql
+SELECT COUNT(*) FROM users;
+SELECT COUNT(*) FROM recipes;
+```
+
+---
+
+## Notes
+
+- Same command works for both local and production.
+- Backend must be running before seeding.
+- Script avoids duplicate users and recipes.
+- Seed includes:
+  - test users
+  - generated fruit recipes
+
 
 ## Common Issues
 
