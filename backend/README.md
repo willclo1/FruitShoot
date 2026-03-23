@@ -1,33 +1,29 @@
 # FruitShoot Backend
 
-FastAPI backend with:
-
-- Python virtual environment
-- FASTAPI
-- SQLAlchemy
+FastAPI backend for the FruitShoot application.
 
 ---
 
-# Requirements
+## Requirements
 
 - Python 3.10+
-- Docker + Docker Compose
 - pip
-
 
 ---
 
-# Local Development
+## Local Development
 
-## 1. Create virtual environment
+### 1. Create virtual environment
 
 Mac/Linux:
+
 ```bash
 python -m venv venv
 source venv/bin/activate
 ```
 
 Windows:
+
 ```powershell
 python -m venv venv
 venv\Scripts\Activate.ps1
@@ -35,7 +31,7 @@ venv\Scripts\Activate.ps1
 
 ---
 
-## 2. Install dependencies
+### 2. Install dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -43,134 +39,64 @@ pip install -r requirements.txt
 
 ---
 
-## 3. Start MySQL
+### 3. Configure environment
 
-From the database folder in the root of the project(/FruitShoot/database):
+The backend reads database settings from a `.env` file .
 
-```bash
-cd database
-docker compose up -d
+Example:
+
+```env
+DB_HOST=127.0.0.1
+DB_PORT=3307
+DB_USER=appuser
+DB_PASSWORD=fshoot
+DB_NAME=fruitshoot
+ENV=development
 ```
-
-This starts:
-- MySQL on 127.0.0.1:3307
-- Images stored in database/data/images
 
 ---
 
-## 5. Run backend
+### 4. Run backend
 
-From backend:
+From the `backend/` directory:
 
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-Open:
+---
+
+## Access
+
+Open in browser:
+
 ```
-http://<your_ip>:8000
+http://127.0.0.1:8000
+```
+
+API documentation:
+
+```
+http://127.0.0.1:8000/docs
 ```
 
 ---
 
-# Server Deployment (Cloud VM)
+## Image Storage
 
-## 1. SSH into server
-
-```bash
-ssh root@YOUR_SERVER_IP
-```
-
----
-
-## 2. Install Docker
-
-```bash
-apt update
-apt install -y docker.io docker-compose
-systemctl enable docker
-systemctl start docker
-```
-
----
-
-## 3. Clone repo
-
-```bash
-git clone https://github.com/willclo1/FruitShoot.git
-cd FruitShoot/database
-```
-
----
-
-## 4. Start MySQL container
-
-```bash
-docker compose up -d
-```
-
----
-
-## 6. Run backend
-
-```bash
-cd backend
-source venv/bin/activate
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
-Notes:
-- Must use `--host 0.0.0.0`
-- Do NOT use `--reload` in production
-
----
-
-## 7. Open firewall
-
-Allow inbound:
-
-- 22 (SSH)
-- 8000 (API)
-
----
-
-## 8. Access API
-
-```
-http://YOUR_SERVER_IP:8000
-```
-
----
-
-# Image Storage
-
-Uploads are stored on disk:
+Uploaded images are stored on disk:
 
 ```
 database/data/images/
 ```
 
-This folder:
-
-- persists outside containers
-- exists both locally and on server
-- is not committed to git
+Only the filename is stored in the database.
 
 ---
 
-# Stop Services
+## Notes
 
-Stop backend:
-```
-CTRL + C
-```
-
-Stop MySQL:
-```bash
-docker compose down
-```
-
----
-
-# Additonal Notes
-- The AI Model will be downloaded from a digital ocean bucket into the ml/weights folder locally.
+- Always use `--host 0.0.0.0` when running the server
+- Do not use `--reload` in production
+- The model is downloaded into `backend/ml/weights/` if not present
+- The backend serves uploaded images through `/uploads`
