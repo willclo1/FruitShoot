@@ -266,6 +266,53 @@ SELECT COUNT(*) FROM recipes;
 
 ---
 
+## Logs and Debugging
+
+### View backend logs
+
+```bash
+docker logs -f fruitshoot-backend
+```
+
+### View database logs
+
+```bash
+docker logs -f fruitshoot-mysql
+```
+
+### View all containers
+
+```bash
+docker ps
+```
+
+### Restart containers
+
+```bash
+docker compose restart
+```
+
+### Rebuild containers
+
+```bash
+docker compose down
+docker compose up -d --build
+```
+
+### Stop everything
+
+```bash
+docker compose down
+```
+
+### Clean Docker (reset everything)
+
+```bash
+docker system prune -a -f
+```
+
+
+
 ## Notes
 
 - Same command works for both local and production.
