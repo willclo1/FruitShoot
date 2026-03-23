@@ -28,6 +28,7 @@ from fastapi import FastAPI
 
 from routers.clip import router as clip_router
 from recipe.clipper import init_browser, shutdown_browser
+from routers.retraining import router as retraining_router
 
 from routers import userRoutes, recipeRoutes
 from models.users import Base, User
@@ -71,6 +72,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 app.include_router(userRoutes.router)
 app.include_router(clip_router) 
 app.include_router(recipeRoutes.router)
+app.include_router(retraining_router)
 
 BACKEND_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BACKEND_DIR.parent
