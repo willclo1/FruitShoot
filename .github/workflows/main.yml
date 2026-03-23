@@ -3,7 +3,7 @@ name: Deploy
 on:
   push:
     branches:
-      - production
+      - main
 
 jobs:
   deploy:
@@ -22,7 +22,8 @@ jobs:
           ssh ${{ secrets.USER }}@${{ secrets.HOST }} << 'EOF'
             cd ~/FruitShoot
             git fetch origin
-            git checkout production
-            git reset --hard origin/production
+            git checkout main
+            git reset --hard origin/main
+            docker compose down
             docker compose up -d --build
           EOF
