@@ -1,6 +1,6 @@
-# FruitShoot – Local Development Database
+# FruitShoot – Database
 
-This folder runs a local and server MySQL database using Docker for development.
+This project uses a MySQL database to store users, uploaded image metadata, recipes, saved recipes, and retraining samples.
 
 ---
 
@@ -10,147 +10,149 @@ This folder runs a local and server MySQL database using Docker for development.
 Stores account information.
 
 Fields:
-- id (auto increment primary key)
-- email (unique)
-- username (unique)
-- password_hash
-- created_at
-- profile_id (foreign key → images.id, nullable)
+- `id` — auto increment primary key
+- `email` — unique email
+- `username` — unique username
+- `password_hash` — hashed password
+- `created_at` — account creation timestamp
+- `profile_id` — nullable foreign key to `images.id`
+
+---
 
 ### images table
 Stores metadata for uploaded images.
 
 Fields:
-- id (auto increment primary key)
-- user_id (foreign key → users.id)
-- description
-- location (filename only, not full path)
-- uploaded_at
+- `id` — auto increment primary key
+- `user_id` — foreign key to `users.id`
+- `description` — optional text description
+- `location` — filename only, not full path
+- `uploaded_at` — upload timestamp
+
+---
 
 ### recipes table
 Stores recipes created by users.
 
 Fields:
-- id (auto increment primary key)
-- user_id (foreign key → users.id)
-- title
-- ingredients_description (LONGTEXT)
-- instructions_description (LONGTEXT)
-- created_at
-
-To modify the existing schema go to /init/schema.sql and modify this file. Then rebuild the docker container.
-
-### Image storage
-
-Images are not stored in MySQL.
-
-Images are written to disk and only the filename is saved in the database.
-
-Images path:
-```
-database/data/images/
-```
-
-## Requirements
-
-Install:
-
-- Docker
-
-Verify:
-
-```bash
-docker --version
-docker compose version
-```
+- `id` — auto increment primary key
+- `user_id` — foreign key to `users.id`
+- `title` — recipe title
+- `ingredients_description` — recipe ingredients
+- `instructions_description` — recipe instructions
+- `created_at` — creation timestamp
 
 ---
 
-## Start the database
+### saved_recipes table
+Stores recipes saved by users.
 
-From the `database/` directory:
+Fields:
+- `id` — auto increment primary key
+- `user_id` — foreign key to `users.id`
+- `recipe_id` — foreign key to `recipes.id`
+- `created_at` — save timestamp
 
-```bash
-docker compose up -d
+Constraints:
+- one user cannot save the same recipe more than once
+
+---
+
+### retraining_samples table
+Stores model feedback samples for future retraining.
+
+Fields:
+- `id` — auto increment primary key
+- `image_id` — foreign key to `images.id`
+- `fruit_index` — predicted fruit class index
+- `ripeness_index` — predicted ripeness class index
+- `fruit_confidence` — fruit prediction confidence
+- `ripeness_confidence` — ripeness prediction confidence
+- `used_for_training` — whether the sample has already been used
+- `created_at` — creation timestamp
+
+---
+
+## Modifying the Schema
+
+Edit:
+
+```text
+database/init/schema.sql
+```
+
+After modifying the schema, reinitialize the database so the changes are applied.
+
+---
+
+## Image Storage
+
+Images are not stored in the database.
+
+Only the filename is stored in MySQL.
+
+Actual uploaded image files are stored at:
+
+```text
+database/data/images/
 ```
 
 ---
 
 ## Connection Settings
 
+### Local development
 Host:
-```
-localhost
+
+```text
+127.0.0.1
 ```
 
 Port:
-```
+
+```text
 3307
 ```
 
-User:
+### Application internal connection
+Host:
+
+```text
+mysql
 ```
+
+Port:
+
+```text
+3306
+```
+
+### Credentials
+User:
+
+```text
 appuser
 ```
 
 Password:
-```
+
+```text
 fshoot
 ```
 
 Database:
-```
+
+```text
 fruitshoot
 ```
 
-Note: MySQL runs on 3306 inside Docker and is exposed as 3307 on the host.
-
 ---
 
-## Open MySQL shell
+## Notes
 
-App user:
-
-```bash
-docker exec -it fruitshoot-mysql mysql -u appuser -pfshoot fruitshoot
-```
-
-Root:
-
-```bash
-docker exec -it fruitshoot-mysql mysql -u root -pfshoot
-```
-
----
-
-## Stop database
-
-```bash
-docker compose down
-```
-
----
-
-## Reset database
-
-```bash
-docker compose down -v
-docker compose up -d
-```
-
----
-
-## View logs
-
-```bash
-docker logs -f fruitshoot-mysql
-```
-
----
-
-## Quick Start
-
-```bash
-cd database
-docker compose up -d
+- The database stores metadata, not image binaries
+- Uploaded files are stored separately on disk
+- `profile_id` on `users` links a user to their selected profile image
+- `saved_recipes` links users to recipes they want to keep
+- `retraining_samples` stores prediction feedback for later model improvement
 ```

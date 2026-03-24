@@ -163,13 +163,20 @@ export default function UploadScreen() {
       say("Analyzing. Please wait.", true);
       await sleep(150);
       router.push({
-        pathname: "/ResultsScreen",
-        params: {
-          uploadedUrl: data.url,
-          fruit: data.prediction?.fruit ?? "Unknown",
-          fruitConfidence: String(data.prediction?.fruit_confidence ?? 0),
-          ripeness: data.prediction?.ripeness ?? "N/A",
-          ripenessConfidence: String(data.prediction?.ripeness_confidence ?? 0),
+      pathname: "/ResultsScreen",
+      params: {
+        image_id: data.id,
+        uploadedUrl: data.url,
+
+        fruit: data.prediction?.fruit ?? "Unknown",
+        fruit_index: String(data.prediction?.fruit_index ?? 0), // ✅ ADD THIS
+
+        fruitConfidence: String(data.prediction?.fruit_confidence ?? 0),
+
+        ripeness: data.prediction?.ripeness ?? "N/A",
+        ripeness_index: String(data.prediction?.ripeness_index ?? 1), // ✅ ADD THIS TOO
+
+        ripenessConfidence: String(data.prediction?.ripeness_confidence ?? 0),
         },
       });
       setImageUri(null);

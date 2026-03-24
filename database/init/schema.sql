@@ -61,3 +61,28 @@ CREATE TABLE saved_recipes (
     FOREIGN KEY (recipe_id) REFERENCES recipes(id)
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE retraining_samples (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  image_id BIGINT UNSIGNED NOT NULL,
+
+  fruit_index INT NOT NULL,
+  ripeness_index INT NOT NULL,
+
+  fruit_confidence FLOAT NOT NULL,
+  ripeness_confidence FLOAT NOT NULL,
+
+  used_for_training BOOLEAN NOT NULL DEFAULT FALSE,
+
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id),
+
+  KEY idx_retraining_image (image_id),
+  KEY idx_retraining_used (used_for_training),
+
+  CONSTRAINT fk_retraining_image
+    FOREIGN KEY (image_id) REFERENCES images(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

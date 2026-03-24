@@ -5,7 +5,7 @@ from jose import jwt, JWTError
 import pathlib
 
 from dotenv import load_dotenv
-dotenv_path = pathlib.Path(__file__).resolve().parent.parent / ".env"
+dotenv_path = pathlib.Path(__file__).resolve().parents[2] / ".env"
 load_dotenv(dotenv_path)
 
 SECRET_KEY = os.getenv("SECRET_KEY")

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Image,
   Pressable,
@@ -14,6 +14,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { tts } from "@/services/tts";
 import { useSettings } from "@/services/settingsContext";
 import { useFontStyle, useTouchTarget } from "@/services/settingsContext";
+import { addRetrainingSample } from "@/services/retrain";
 
 const BRAND = "#1F4C47";
 const BG = "#F6F3EE";
@@ -45,25 +46,39 @@ export default function ResultsScreen() {
   const finalScale = scale * tt.fontBoost;
 
   const params = useLocalSearchParams<{
+    image_id?: string;
     uploadedUrl?: string;
     fruit?: string;
+    fruit_index?: string;
     fruitConfidence?: string;
     ripeness?: string;
+    ripeness_index?: string;
     ripenessConfidence?: string;
   }>();
 
   const fruit = params.fruit ?? "Unknown";
+  const fruitIndex = Number(params.fruit_index ?? "0");
+
   const isNonFruit =
     fruit.toLowerCase().includes("non") ||
     fruit.toLowerCase().includes("background");
+
   const fruitConfidence = Number(params.fruitConfidence ?? "0");
   const modelRipeness = params.ripeness ?? "N/A";
   const ripenessConfidence = Number(params.ripenessConfidence ?? "0");
+  const imageId = Number(params.image_id ?? "0");
+  const [liked, setLiked] = useState(false);
 
   const ripenessIndex: RipenessIndex | null = useMemo(() => {
     if (isNonFruit) return null;
+
+    const fromModel = Number(params.ripeness_index);
+    if (Number.isInteger(fromModel) && fromModel >= 0 && fromModel <= 3) {
+      return fromModel as RipenessIndex;
+    }
+
     return ripenessToIndex(modelRipeness);
-  }, [modelRipeness, isNonFruit]);
+  }, [params.ripeness_index, modelRipeness, isNonFruit]);
 
   const ripenessLabel = useMemo(() => {
     if (ripenessIndex === null) return null;
@@ -126,6 +141,26 @@ export default function ResultsScreen() {
       headline,
     ])
   );
+
+  const handleLike = async () => {
+    if (liked) return;
+    if (!imageId) return;
+
+    setLiked(true);
+
+    try {
+      await addRetrainingSample({
+        image_id: imageId,
+        fruit_index: fruitIndex,
+        ripeness_index: ripenessIndex ?? 1,
+        fruit_confidence: fruitConfidence,
+        ripeness_confidence: ripenessConfidence,
+      });
+    } catch (err) {
+      console.error("Failed to add retraining sample", err);
+      setLiked(false);
+    }
+  };
 
   const showReplay = loaded && settings.ttsEnabled;
 
@@ -324,6 +359,46 @@ export default function ResultsScreen() {
           </View>
         )}
 
+        <View style={styles.feedbackContainer}>
+          <Pressable
+            onPress={handleLike}
+            disabled={liked}
+            style={({ pressed }) => [
+              styles.likeButton,
+              {
+                minHeight: tt.minHeight,
+                borderRadius: tt.borderRadius,
+              },
+              liked && styles.likeButtonActive,
+              pressed && !liked && styles.likeButtonPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={
+              liked ? "Saved for improvement" : "Looks right"
+            }
+          >
+            <Text
+              style={[
+                styles.likeIcon,
+                liked && styles.likeIconActive,
+                { fontSize: 18 * finalScale },
+              ]}
+            >
+              {liked ? "✓" : "♡"}
+            </Text>
+
+            <Text
+              style={[
+                styles.likeText,
+                liked && styles.likeTextActive,
+                { fontFamily: fontBold, fontSize: 15 * finalScale },
+              ]}
+            >
+              {liked ? "Saved for improvement" : "Looks Right"}
+            </Text>
+          </Pressable>
+        </View>
+
         <View style={styles.suggestCard}>
           <Text
             style={[
@@ -346,8 +421,8 @@ export default function ResultsScreen() {
           <Pressable
             onPress={() =>
               router.push(
-  `/suggestion?fruit=${encodeURIComponent(fruit)}&ripeness=${encodeURIComponent(modelRipeness)}&fruitConfidence=${fruitConfidence}&ripenessConfidence=${ripenessConfidence}`
-)
+                `/suggestion?fruit=${encodeURIComponent(fruit)}&ripeness=${encodeURIComponent(modelRipeness)}&fruitConfidence=${fruitConfidence}&ripenessConfidence=${ripenessConfidence}`
+              )
             }
             style={({ pressed }) => [
               styles.primaryAction,
@@ -501,6 +576,47 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: "rgba(15,31,29,0.72)",
     fontWeight: "700",
+  },
+
+  feedbackContainer: {
+    marginTop: 16,
+  },
+
+  likeButton: {
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderWidth: 1,
+    borderColor: "rgba(31,76,71,0.12)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  likeButtonPressed: {
+    transform: [{ scale: 0.98 }],
+  },
+  likeButtonActive: {
+    backgroundColor: BRAND,
+    borderColor: BRAND,
+  },
+  likeIcon: {
+    color: BRAND,
+    fontWeight: "900",
+  },
+  likeIconActive: {
+    color: "#fff",
+  },
+  likeText: {
+    color: BRAND,
+    fontWeight: "900",
+  },
+  likeTextActive: {
+    color: "#fff",
   },
 
   suggestCard: {
