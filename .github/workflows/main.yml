@@ -24,7 +24,6 @@ jobs:
             set -e
             export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
 
-            # --- backend ---
             cd ~/FruitShoot
             git fetch origin
             git checkout main
@@ -33,21 +32,18 @@ jobs:
             docker compose down
             docker compose up -d --build
 
-            # --- frontend ---
             cd ~/FruitShoot/frontend
             npm install
 
-            # install tmux if missing
             if ! command -v tmux >/dev/null 2>&1; then
               sudo apt-get update
               sudo apt-get install -y tmux
             fi
 
-            # kill old expo session if exists
+            chmod +x ~/run_expo.sh
+
             tmux kill-session -t expo || true
+            tmux new -d -s expo "~/run_expo.sh"
 
-            # start new expo dev server in tmux
-            tmux new -d -s expo "cd ~/FruitShoot/frontend && npx expo start --tunnel --clear"
-
-            echo "Expo server started in tmux session 'expo'"
+            echo "Expo server started with ~/run_expo.sh in tmux session 'expo'"
           EOF
