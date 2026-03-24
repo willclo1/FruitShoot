@@ -22,7 +22,6 @@ jobs:
         run: |
           ssh "${{ secrets.USER }}@${{ secrets.HOST }}" << 'EOF'
             set -e
-
             export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
 
             cd ~/FruitShoot
@@ -30,26 +29,26 @@ jobs:
             git checkout main
             git reset --hard origin/main
 
+            docker system prune -a -f
+            docker volume prune -f
+            
             docker compose down
             docker compose up -d --build
+
+          
 
             cd ~/FruitShoot/frontend
             npm install
 
-            if ! command -v ngrok >/dev/null 2>&1; then
-              curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
-                | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-              echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
-                | sudo tee /etc/apt/sources.list.d/ngrok.list
+            if ! command -v tmux >/dev/null 2>&1; then
               sudo apt-get update
-              sudo apt-get install -y ngrok
+              sudo apt-get install -y tmux
             fi
 
-            if [ ! -f ~/.config/ngrok/ngrok.yml ]; then
-              ngrok config add-authtoken "${{ secrets.NGROK_AUTHTOKEN }}"
-            fi
+            chmod +x ~/run_expo.sh
 
-            pm2 start ecosystem.config.js --only fruitshoot-expo || pm2 restart fruitshoot-expo --update-env
-            pm2 start ecosystem.config.js --only fruitshoot-ngrok || pm2 restart fruitshoot-ngrok --update-env
-            pm2 save
+            tmux kill-session -t expo || true
+            tmux new -d -s expo "~/run_expo.sh"
+
+            echo "Expo server started with ~/run_expo.sh in tmux session 'expo'"
           EOF
