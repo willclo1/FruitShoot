@@ -28,7 +28,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
-
   backend:
     build: ./backend
     container_name: fruitshoot-backend
@@ -39,6 +38,7 @@ services:
       mysql:
         condition: service_healthy
     volumes:
+      - ./backend:/app/backend
       - ./database/data/images:/app/database/data/images
     ports:
       - "8000:8000"
