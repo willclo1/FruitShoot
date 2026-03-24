@@ -3,9 +3,19 @@ module.exports = {
     {
       name: "fruitshoot-expo",
       cwd: ".",
-      script: "script",
-      args: "-q /dev/null npx expo start --tunnel --clear",
-      interpreter: "none",
+      script: "npx",
+      args: "expo start --clear",
+      autorestart: true,
+      watch: false,
+      max_restarts: 20,
+      restart_delay: 5000,
+      time: true
+    },
+    {
+      name: "fruitshoot-ngrok",
+      cwd: ".",
+      script: "ngrok",
+      args: "http 8081 --log=stdout",
       autorestart: true,
       watch: false,
       max_restarts: 20,
