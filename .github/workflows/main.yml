@@ -36,7 +36,6 @@ jobs:
             cd ~/FruitShoot/frontend
             npm install
 
-            pm2 delete fruitshoot-expo || true
-            pm2 start ecosystem.config.js
+            pm2 start ecosystem.config.js --only fruitshoot-expo || pm2 restart fruitshoot-expo --update-env
             pm2 save
           EOF
