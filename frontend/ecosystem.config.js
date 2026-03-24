@@ -5,9 +5,6 @@ module.exports = {
       cwd: ".",
       script: "npx",
       args: "expo start --tunnel --clear",
-      env: {
-        CI: "1"
-      },
       autorestart: true,
       watch: false,
       max_restarts: 20,
