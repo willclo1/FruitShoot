@@ -43,7 +43,17 @@ register_heif_opener()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_browser()
+    browser_started = False
+
+    loop = asyncio.get_running_loop()
+    if sys.platform == "win32" and isinstance(loop, asyncio.SelectorEventLoop):
+        print(
+            "Skipping Playwright startup on Windows selector loop. "
+            "Run without --reload to enable /clip endpoints."
+        )
+    else:
+        await init_browser()
+        browser_started = True
 
     print("Installing model")
     ensure_model()
@@ -54,7 +64,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    await shutdown_browser()
+    if browser_started:
+        await shutdown_browser()
 
 
 app = FastAPI(title="FruitShoot API", lifespan=lifespan)
