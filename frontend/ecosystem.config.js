@@ -5,6 +5,9 @@ module.exports = {
       cwd: ".",
       script: "npx",
       args: "expo start --tunnel --clear",
+      env: {
+        EXPO_TUNNEL_SUBDOMAIN: "fruitshoot"
+      },
       autorestart: true,
       watch: false,
       max_restarts: 20,
