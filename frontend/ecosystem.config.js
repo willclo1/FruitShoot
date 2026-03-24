@@ -3,11 +3,9 @@ module.exports = {
     {
       name: "fruitshoot-expo",
       cwd: ".",
-      script: "npx",
-      args: "expo start --tunnel --clear",
-      env: {
-        EXPO_TUNNEL_SUBDOMAIN: "fruitshoot"
-      },
+      script: "script",
+      args: "-q /dev/null npx expo start --tunnel --clear",
+      interpreter: "none",
       autorestart: true,
       watch: false,
       max_restarts: 20,
