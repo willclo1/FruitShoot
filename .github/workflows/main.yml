@@ -16,15 +16,27 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H "${{ secrets.HOST }}" >> ~/.ssh/known_hosts
 
       - name: Deploy
         run: |
-          ssh ${{ secrets.USER }}@${{ secrets.HOST }} << 'EOF'
+          ssh "${{ secrets.USER }}@${{ secrets.HOST }}" << 'EOF'
+            set -e
+
+            export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+
             cd ~/FruitShoot
             git fetch origin
             git checkout main
             git reset --hard origin/main
+
             docker compose down
             docker compose up -d --build
+
+            cd ~/FruitShoot/frontend
+            npm install
+
+            pm2 delete fruitshoot-expo || true
+            pm2 start ecosystem.config.js
+            pm2 save
           EOF
