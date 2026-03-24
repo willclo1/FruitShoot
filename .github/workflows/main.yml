@@ -29,13 +29,12 @@ jobs:
             git checkout main
             git reset --hard origin/main
 
-            docker system prune -a -f
-            docker volume prune -f
-            
-            docker compose down
+            docker compose down --remove-orphans
             docker compose up -d --build
 
-          
+            # Clean old Docker images/build cache after successful deploy
+            docker image prune -af
+            docker builder prune -af
 
             cd ~/FruitShoot/frontend
             npm install
@@ -48,7 +47,7 @@ jobs:
             chmod +x ~/run_expo.sh
 
             tmux kill-session -t expo || true
-            tmux new -d -s expo "~/run_expo.sh"
+            tmux new-session -d -s expo "~/run_expo.sh"
 
             echo "Expo server started with ~/run_expo.sh in tmux session 'expo'"
           EOF
