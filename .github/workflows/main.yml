@@ -29,8 +29,12 @@ jobs:
             git checkout main
             git reset --hard origin/main
 
+            docker system prune -a -f
+            
             docker compose down
             docker compose up -d --build
+
+          
 
             cd ~/FruitShoot/frontend
             npm install
