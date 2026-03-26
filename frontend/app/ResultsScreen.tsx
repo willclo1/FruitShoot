@@ -8,7 +8,6 @@ import {
   Text,
   View,
 } from "react-native";
-import Slider from "@react-native-community/slider";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
 import { tts } from "@/services/tts";
@@ -18,19 +17,29 @@ import { addRetrainingSample } from "@/services/retrain";
 
 const BRAND = "#1F4C47";
 const BG = "#F6F3EE";
-const TRACK = "#D9D9D9";
-const THUMB = "#E94B3C";
-const RIPENESS_LABELS = ["Unripe", "Ripe", "Overripe", "Spoiled"] as const;
+
+// ─── Label maps — must stay in sync with model.py / predict.py ───────────────
+// fruit_map: {0: 'Apple', 1: 'Banana', 2: 'Strawberry', 3: 'Non-Fruit'}
+// ripe_map:  {0: 'Ripe',  1: 'Rotten', 2: 'N/A',        3: 'Underripe'}
+const RIPENESS_LABELS = ["Ripe", "Rotten", "N/A", "Underripe"] as const;
 type RipenessIndex = 0 | 1 | 2 | 3;
 
-function ripenessToIndex(label?: string): RipenessIndex {
+// Each ripeness state gets its own accent colour for the badge.
+const RIPENESS_COLORS: Record<RipenessIndex, { bg: string; text: string; border: string }> = {
+  0: { bg: "#E8F5E9", text: "#2E7D32", border: "#A5D6A7" }, // Ripe      — green
+  1: { bg: "#FBE9E7", text: "#BF360C", border: "#FFAB91" }, // Rotten    — red-orange
+  2: { bg: "#F5F5F5", text: "#616161", border: "#BDBDBD" }, // N/A       — neutral grey
+  3: { bg: "#FFF8E1", text: "#E65100", border: "#FFE082" }, // Underripe — amber
+};
+
+/** Fallback: parse raw ripeness label string → index when param is missing. */
+function ripenessLabelToIndex(label?: string): RipenessIndex {
   const l = (label || "").toLowerCase();
-  if (l.includes("under")) return 0;
-  if (l === "ripe") return 1;
-  if (l.includes("over")) return 2;
-  if (l.includes("rot") || l.includes("spo")) return 3;
-  if (l === "n/a" || l.includes("na")) return 1;
-  return 1;
+  if (l === "ripe") return 0;
+  if (l === "rotten") return 1;
+  if (l === "n/a") return 2;
+  if (l === "underripe" || l.includes("under")) return 3;
+  return 0;
 }
 
 function confPct(conf: number) {
@@ -59,27 +68,27 @@ export default function ResultsScreen() {
   const fruit = params.fruit ?? "Unknown";
   const fruitIndex = Number(params.fruit_index ?? "0");
 
+  // fruit_map index 3 = 'Non-Fruit'
   const isNonFruit =
     fruit.toLowerCase().includes("non") ||
-    fruit.toLowerCase().includes("background");
+    fruit.toLowerCase().includes("background") ||
+    fruitIndex === 3;
 
   const fruitConfidence = Number(params.fruitConfidence ?? "0");
-  const modelRipeness = params.ripeness ?? "N/A";
+  const modelRipeness = params.ripeness ?? "N/A";      // raw backend label string
   const ripenessConfidence = Number(params.ripenessConfidence ?? "0");
   const imageId = Number(params.image_id ?? "0");
   const [liked, setLiked] = useState(false);
 
+  // ripe_map index used to drive the slider + pill UI — same as the backend index.
   const ripenessIndex: RipenessIndex | null = useMemo(() => {
     if (isNonFruit) return null;
-
-    const fromModel = Number(params.ripeness_index);
-    if (Number.isInteger(fromModel) && fromModel >= 0 && fromModel <= 3) {
-      return fromModel as RipenessIndex;
-    }
-
-    return ripenessToIndex(modelRipeness);
+    const idx = Number(params.ripeness_index);
+    if (Number.isInteger(idx) && idx >= 0 && idx <= 3) return idx as RipenessIndex;
+    return ripenessLabelToIndex(modelRipeness);
   }, [params.ripeness_index, modelRipeness, isNonFruit]);
 
+  /** Label shown in the info strip and pills — directly from the model's ripe_map. */
   const ripenessLabel = useMemo(() => {
     if (ripenessIndex === null) return null;
     return RIPENESS_LABELS[ripenessIndex];
@@ -99,32 +108,22 @@ export default function ResultsScreen() {
   const headline = useMemo(() => {
     if (isNonFruit) return "Not a fruit";
     switch (ripenessIndex) {
-      case 1:
-        return "Ready to eat";
-      case 0:
-        return "Needs more time";
-      case 2:
-        return "Use soon";
-      case 3:
-        return "Past its prime";
-      default:
-        return "Results";
+      case 0: return "Ready to eat";        // Ripe
+      case 1: return "Past its prime";      // Rotten
+      case 2: return "Not applicable";      // N/A
+      case 3: return "Needs more time";     // Underripe
+      default: return "Results";
     }
   }, [ripenessIndex, isNonFruit]);
 
   const hint = useMemo(() => {
     if (isNonFruit) return "This image does not appear to contain fruit.";
     switch (ripenessIndex) {
-      case 1:
-        return "Best flavor right now.";
-      case 0:
-        return "Give it a little longer.";
-      case 2:
-        return "Great for smoothies or baking.";
-      case 3:
-        return "Consider composting if it smells off.";
-      default:
-        return "";
+      case 0: return "Best flavor right now.";                    // Ripe
+      case 1: return "Consider composting if it smells off.";    // Rotten
+      case 2: return "";                                          // N/A
+      case 3: return "Give it a little longer.";                  // Underripe
+      default: return "";
     }
   }, [ripenessIndex, isNonFruit]);
 
@@ -152,7 +151,7 @@ export default function ResultsScreen() {
       await addRetrainingSample({
         image_id: imageId,
         fruit_index: fruitIndex,
-        ripeness_index: ripenessIndex ?? 1,
+        ripeness_index: Number(params.ripeness_index ?? "0"), // send raw backend index
         fruit_confidence: fruitConfidence,
         ripeness_confidence: ripenessConfidence,
       });
@@ -303,66 +302,55 @@ export default function ResultsScreen() {
             <Text
               style={[
                 styles.sectionTitle,
-                { fontFamily: fontBold, fontSize: 20 * finalScale },
+                { fontFamily: fontBold, fontSize: 15 * finalScale },
               ]}
             >
               Ripeness
             </Text>
 
-            <View style={styles.sliderWrap} pointerEvents="none">
-              <Slider
-                value={ripenessIndex}
-                minimumValue={0}
-                maximumValue={3}
-                step={1}
-                disabled
-                minimumTrackTintColor={TRACK}
-                maximumTrackTintColor={TRACK}
-                thumbTintColor={THUMB}
-              />
-            </View>
-
-            <View style={styles.stageRow}>
-              {RIPENESS_LABELS.map((label, idx) => {
-                const active = idx === ripenessIndex;
-                return (
-                  <View
-                    key={label}
-                    style={[
-                      styles.stagePill,
-                      active && styles.stagePillActive,
-                      { minHeight: tt.minHeight },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.stageText,
-                        active && styles.stageTextActive,
-                        { fontFamily: fontBold, fontSize: 12 * finalScale },
-                      ]}
-                    >
-                      {label}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-
-            <Text
+            <View
               style={[
-                styles.hintText,
-                { fontFamily: fontRegular, fontSize: 14 * finalScale },
+                styles.ripeBadgeCard,
+                {
+                  backgroundColor: RIPENESS_COLORS[ripenessIndex].bg,
+                  borderColor: RIPENESS_COLORS[ripenessIndex].border,
+                },
               ]}
             >
-              {hint}
-            </Text>
+              <Text
+                style={[
+                  styles.ripeBadgeLabel,
+                  {
+                    fontFamily: fontBold,
+                    fontSize: 22 * finalScale,
+                    color: RIPENESS_COLORS[ripenessIndex].text,
+                  },
+                ]}
+              >
+                {RIPENESS_LABELS[ripenessIndex]}
+              </Text>
+
+              {hint ? (
+                <Text
+                  style={[
+                    styles.ripeBadgeHint,
+                    {
+                      fontFamily: fontBold,
+                      fontSize: 13 * finalScale,
+                      color: RIPENESS_COLORS[ripenessIndex].text,
+                    },
+                  ]}
+                >
+                  {hint}
+                </Text>
+              ) : null}
+            </View>
           </View>
         )}
 
         <View style={styles.feedbackContainer}>
           <Pressable
             onPress={handleLike}
-            disabled={liked}
             style={({ pressed }) => [
               styles.likeButton,
               {
@@ -551,31 +539,21 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
     marginBottom: 10,
   },
-  sliderWrap: {
+  ripeBadgeCard: {
     borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.7)",
-    borderWidth: 1,
-    borderColor: "rgba(31,76,71,0.12)",
-    padding: 10,
-  },
-  stageRow: { flexDirection: "row", marginTop: 12, gap: 8 },
-  stagePill: {
-    flex: 1,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.7)",
-    borderWidth: 1,
-    borderColor: "rgba(31,76,71,0.12)",
-    paddingHorizontal: 10,
-    justifyContent: "center",
+    borderWidth: 1.5,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     alignItems: "center",
+    gap: 6,
   },
-  stagePillActive: { backgroundColor: BRAND },
-  stageText: { color: BRAND, fontWeight: "900" },
-  stageTextActive: { color: "white" },
-  hintText: {
-    marginTop: 10,
-    color: "rgba(15,31,29,0.72)",
+  ripeBadgeLabel: {
+    fontWeight: "900",
+  },
+  ripeBadgeHint: {
     fontWeight: "700",
+    opacity: 0.85,
+    textAlign: "center",
   },
 
   feedbackContainer: {

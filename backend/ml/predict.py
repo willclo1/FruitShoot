@@ -12,6 +12,7 @@ _transform = transforms.Compose([
                          [0.229, 0.224, 0.225]),
 ])
 
+
 def predict_image_path(model, image_path: str):
     image = Image.open(image_path).convert("RGB")
     x = _transform(image).unsqueeze(0)
