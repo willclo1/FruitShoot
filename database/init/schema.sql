@@ -5,6 +5,7 @@ CREATE TABLE users (
   email VARCHAR(255) NOT NULL,
   username VARCHAR(50) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
+  allergies TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   profile_id BIGINT UNSIGNED,
   PRIMARY KEY (id),

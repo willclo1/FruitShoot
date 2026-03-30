@@ -2,11 +2,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Image,
+  Modal,
   Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   ActivityIndicator,
 } from "react-native";
@@ -16,6 +18,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 
 import { getMe, type Me } from "@/services/me";
+import { getAllergies, updateAllergies } from "@/services/allergies";
 import { setAuthed } from "@/services/authState";
 import { tts } from "@/services/tts";
 import {
@@ -42,8 +45,8 @@ function ActionTile({
   title: string;
   subtitle: string;
   onPress: () => void;
-  fontBold: string;
-  fontRegular: string;
+  fontBold?: string;
+  fontRegular?: string;
   finalScale: number;
 }) {
   return (
@@ -80,6 +83,11 @@ export default function ProfileScreen() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
+  const [allergies, setAllergies] = useState("");
+  const [allergyDraft, setAllergyDraft] = useState("");
+  const [allergyModalVisible, setAllergyModalVisible] = useState(false);
+  const [savingAllergies, setSavingAllergies] = useState(false);
+
   const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL;
 
   const displayName = useMemo(() => me?.username || "Your Profile", [me?.username]);
@@ -106,6 +114,11 @@ export default function ProfileScreen() {
         if (!mounted) return;
 
         setMe(data);
+
+        try {
+          const a = await getAllergies();
+          if (mounted) setAllergies(a);
+        } catch {}
 
         const token = await SecureStore.getItemAsync("access_token");
         if (token && API_BASE) {
@@ -214,6 +227,24 @@ export default function ProfileScreen() {
   };
 
   const showReplay = loaded && settings.ttsEnabled;
+
+  const openAllergyModal = () => {
+    setAllergyDraft(allergies);
+    setAllergyModalVisible(true);
+  };
+
+  const saveAllergies = async () => {
+    setSavingAllergies(true);
+    try {
+      const saved = await updateAllergies(allergyDraft.trim());
+      setAllergies(saved);
+      setAllergyModalVisible(false);
+    } catch (e: any) {
+      Alert.alert("Allergies", e?.message || "Could not save allergies");
+    } finally {
+      setSavingAllergies(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -385,6 +416,113 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Allergies card */}
+        <View style={styles.card}>
+          <Text
+            style={[
+              styles.cardTitle,
+              { fontFamily: fontBold, fontSize: 16 * finalScale },
+            ]}
+          >
+            Allergies
+          </Text>
+
+          <Text
+            style={[
+              styles.cardSubtitle,
+              { fontFamily: fontRegular, fontSize: 12 * finalScale },
+            ]}
+          >
+            {allergies
+              ? `Current: ${allergies}`
+              : "No allergies listed yet. Add them so recipe suggestions can account for them."}
+          </Text>
+
+          <Pressable
+            onPress={openAllergyModal}
+            style={({ pressed }) => [styles.allergyButton, pressed && styles.pressed]}
+          >
+            <Text
+              style={[
+                styles.allergyButtonText,
+                { fontFamily: fontBold, fontSize: 14 * finalScale },
+              ]}
+            >
+              {allergies ? "Edit Allergies" : "Add Allergies"}
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Allergy modal */}
+        <Modal
+          visible={allergyModalVisible}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setAllergyModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text
+                style={[
+                  styles.modalTitle,
+                  { fontFamily: fontBold, fontSize: 18 * finalScale },
+                ]}
+              >
+                Your Allergies
+              </Text>
+
+              <TextInput
+                style={[
+                  styles.allergyInput,
+                  { fontFamily: fontRegular, fontSize: 14 * finalScale },
+                ]}
+                value={allergyDraft}
+                onChangeText={setAllergyDraft}
+                placeholder="e.g. peanuts, shellfish, dairy"
+                placeholderTextColor={MUTED}
+                multiline
+                maxLength={2000}
+                autoFocus
+              />
+
+              <View style={styles.modalButtons}>
+                <Pressable
+                  onPress={() => setAllergyModalVisible(false)}
+                  style={({ pressed }) => [styles.modalCancel, pressed && styles.pressed]}
+                >
+                  <Text
+                    style={[
+                      styles.modalCancelText,
+                      { fontFamily: fontBold, fontSize: 14 * finalScale },
+                    ]}
+                  >
+                    Cancel
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={saveAllergies}
+                  disabled={savingAllergies}
+                  style={({ pressed }) => [styles.modalSave, pressed && styles.pressed]}
+                >
+                  {savingAllergies ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.modalSaveText,
+                        { fontFamily: fontBold, fontSize: 14 * finalScale },
+                      ]}
+                    >
+                      Save
+                    </Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         <View style={styles.card}>
           <Text
             style={[
@@ -514,4 +652,59 @@ const styles = StyleSheet.create({
   },
   logoutText: { color: APPLE_RED, fontWeight: "900" },
   pressed: { opacity: 0.86 },
+
+  allergyButton: {
+    marginTop: 14,
+    borderRadius: 14,
+    backgroundColor: CAMERA_GREEN,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 46,
+  },
+  allergyButtonText: { color: "#fff", fontWeight: "900" },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: CREAM,
+    borderRadius: 22,
+    padding: 20,
+  },
+  modalTitle: { color: TEXT_DARK, fontWeight: "900", marginBottom: 12 },
+  allergyInput: {
+    borderWidth: 1,
+    borderColor: "rgba(31,76,71,0.15)",
+    borderRadius: 12,
+    padding: 12,
+    minHeight: 100,
+    textAlignVertical: "top",
+    color: TEXT_DARK,
+    backgroundColor: "#fff",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 16,
+    justifyContent: "flex-end",
+  },
+  modalCancel: {
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: "#F0EEEA",
+  },
+  modalCancelText: { color: TEXT_DARK, fontWeight: "800" },
+  modalSave: {
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    backgroundColor: CAMERA_GREEN,
+    minWidth: 80,
+    alignItems: "center",
+  },
+  modalSaveText: { color: "#fff", fontWeight: "900" },
 });
