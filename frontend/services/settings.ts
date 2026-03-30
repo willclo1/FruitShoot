@@ -13,6 +13,7 @@ export type AppSettings = {
   reduceMotion: boolean;
   largeTouchTargets: boolean;
   accessibleFont: boolean;
+  splashMinDurationMs: number;
 };
 
 const KEY = "app_settings_v1";
@@ -26,6 +27,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   reduceMotion: false,
   largeTouchTargets: false,
   accessibleFont: false,
+  splashMinDurationMs: 2200,
 };
 
 export async function loadSettings(): Promise<AppSettings> {

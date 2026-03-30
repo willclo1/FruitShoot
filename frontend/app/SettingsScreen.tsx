@@ -4,10 +4,13 @@ import { useRouter } from "expo-router";
 import { tts } from "@/services/tts";
 import { useSettings } from "@/services/settingsContext";
 import { useTouchTarget } from "@/services/settingsContext";
+import { useTutorial } from "@/services/tutorialContext";
+import TourTarget from "@/components/tutorial/TourTarget";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { settings, setSettings } = useSettings();
+  const { startTutorial } = useTutorial();
   const tt = useTouchTarget();
 
   const fontScale = settings.largeText ? 1.15 : 1.0;
@@ -79,6 +82,46 @@ export default function SettingsScreen() {
           <Text style={[styles.helper, { fontSize: 12 * scale, fontFamily: fontRegular }]}>
             Switches to Atkinson Hyperlegible, a font designed for low vision readers.
           </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={[styles.sectionTitle, { fontSize: 14 * scale, fontFamily: fontBold }]}>Startup Splash</Text>
+          <Stepper
+            label="Splash display time (seconds)"
+            disabled={false}
+            value={settings.splashMinDurationMs / 1000}
+            min={1.0}
+            max={5.0}
+            step={0.5}
+            onChange={(v) =>
+              setSettings((prev) => ({
+                ...prev,
+                splashMinDurationMs: Math.round(v * 1000),
+              }))
+            }
+            scale={scale}
+            fontFamily={fontBold}
+            tt={tt}
+          />
+          <Divider />
+          <Text style={[styles.helper, { fontSize: 12 * scale, fontFamily: fontRegular }]}>Controls how long the splash stays visible on cold app launch.</Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={[styles.sectionTitle, { fontSize: 14 * scale, fontFamily: fontBold }]}>Help / Tutorial</Text>
+          <Text style={[styles.helper, { fontSize: 12 * scale, fontFamily: fontRegular }]}>Re-open the guided app tutorial at any time.</Text>
+          <TourTarget id="settings-replay-tutorial">
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                { minHeight: tt.minHeight, paddingVertical: tt.paddingVertical, borderRadius: tt.borderRadius },
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={() => startTutorial(0)}
+            >
+              <Text style={[styles.buttonText, { fontSize: 16 * scale, fontFamily: fontBold }]}>Replay Tutorial</Text>
+            </Pressable>
+          </TourTarget>
         </View>
       </ScrollView>
     </SafeAreaView>

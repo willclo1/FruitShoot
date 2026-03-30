@@ -19,6 +19,7 @@ import {
   parseInstructions,
 } from "@/services/recipeFormat";
 import { useFontStyle, useTouchTarget } from "@/services/settingsContext";
+import TourTarget from "@/components/tutorial/TourTarget";
 
 const CAMERA_GREEN = "#1F4C47";
 const CREAM = "#FAF7F2";
@@ -230,7 +231,7 @@ export default function RecipesScreen() {
         <View style={styles.segmentedRow}>
           {(["uploads", "saved"] as TabKey[]).map((item) => {
             const selected = tab === item;
-            return (
+            const button = (
               <Pressable
                 key={item}
                 onPress={() => setTab(item)}
@@ -251,6 +252,16 @@ export default function RecipesScreen() {
                 </Text>
               </Pressable>
             );
+
+            if (item === "saved") {
+              return (
+                <TourTarget key="tour-saved-tab" id="recipes-saved-tab" style={{ flex: 1 }}>
+                  {button}
+                </TourTarget>
+              );
+            }
+
+            return button;
           })}
         </View>
 

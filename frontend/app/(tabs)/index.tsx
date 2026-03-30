@@ -15,6 +15,7 @@ import { setAuthed } from "@/services/authState";
 import { tts } from "@/services/tts";
 import { useSettings } from "@/services/settingsContext";
 import { useFontStyle, useTouchTarget } from "@/services/settingsContext";
+import TourTarget from "@/components/tutorial/TourTarget";
 
 let homeIntroSpokenThisSession = false;
 
@@ -162,16 +163,18 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
           )}
-          <Pressable
-            style={[styles.settingsButton, { minHeight: tt.minHeight, paddingHorizontal: tt.paddingHorizontal }]}
-            onPress={() => router.push("/SettingsScreen")}
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-          >
-            <Text style={[styles.settingsText, { fontFamily: fontBold, fontSize: 13 * finalScale }]}>
-              Settings
-            </Text>
-          </Pressable>
+          <TourTarget id="home-settings-button">
+            <Pressable
+              style={[styles.settingsButton, { minHeight: tt.minHeight, paddingHorizontal: tt.paddingHorizontal }]}
+              onPress={() => router.push("/SettingsScreen")}
+              accessibilityRole="button"
+              accessibilityLabel="Settings"
+            >
+              <Text style={[styles.settingsText, { fontFamily: fontBold, fontSize: 13 * finalScale }]}>
+                Settings
+              </Text>
+            </Pressable>
+          </TourTarget>
         </View>
       </View>
 
@@ -185,20 +188,22 @@ export default function HomeScreen() {
         />
 
         <View style={styles.buttonStack}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              { minHeight: tt.minHeight, paddingVertical: tt.paddingVertical, borderRadius: tt.borderRadius },
-              pressed && styles.buttonPressed,
-            ]}
-            onPress={onPressUpload}
-            accessibilityRole="button"
-            accessibilityLabel="Upload Picture"
-          >
-            <Text style={[styles.buttonText, { fontFamily: fontBold, fontSize: 16 * finalScale }]}>
-              Upload Picture
-            </Text>
-          </Pressable>
+          <TourTarget id="home-upload-button">
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                { minHeight: tt.minHeight, paddingVertical: tt.paddingVertical, borderRadius: tt.borderRadius },
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={onPressUpload}
+              accessibilityRole="button"
+              accessibilityLabel="Upload Picture"
+            >
+              <Text style={[styles.buttonText, { fontFamily: fontBold, fontSize: 16 * finalScale }]}>
+                Upload Picture
+              </Text>
+            </Pressable>
+          </TourTarget>
 
           <Pressable
             style={({ pressed }) => [

@@ -2,19 +2,30 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native
 import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { SettingsProvider } from "@/services/settingsContext";
+import { SettingsProvider, useSettings } from "@/services/settingsContext";
 import { useEffect, useRef, useState } from "react";
 import * as SecureStore from "expo-secure-store";
 import { BackHandler } from "react-native";
 import { setAuthed, subscribeAuthed } from "@/services/authState";
 import { useFonts } from "expo-font";
 import DisclosureModal from "@/components/disclosureModal";
+import SplashScreen from "@/components/splash-screen";
+import TutorialOverlay from "@/components/tutorial/TutorialOverlay";
+import { TUTORIAL_STEPS } from "@/constants/tutorialSteps";
+import { TutorialProvider, useTutorial } from "@/services/tutorialContext";
 
 const LOGIN_ROUTE = "/login";
 const TABS_ROUTE = "/(tabs)";
 const LOGIN_REDIRECT_DELAY_MS = 250;
+const DEFAULT_MIN_SPLASH_DURATION_MS = 2200;
 
-export default function RootLayout() {
+/**
+ * RootContent: Inner component that uses SettingsProvider context
+ * This wrapper allows us to access useSettings() hook for reduceMotion setting
+ * and render the SplashScreen with the correct accessibility configuration
+ */
+function RootContent() {
+  const { settings } = useSettings();
   const colorScheme = useColorScheme();
   const router = useRouter();
   const segments = useSegments();
@@ -23,6 +34,11 @@ export default function RootLayout() {
   const [authChecked, setAuthChecked] = useState(false);
   const [hasToken, setHasToken] = useState(false);
   const [showDisclosure, setShowDisclosure] = useState(false);
+  // Keep splash mounted while fading; visibility controls opacity animation.
+  const [splashMounted, setSplashMounted] = useState(true);
+  const [splashVisible, setSplashVisible] = useState(true);
+  const [minSplashElapsed, setMinSplashElapsed] = useState(false);
+  const [appReady, setAppReady] = useState(false);
 
   const [fontsLoaded] = useFonts({
     "Atkinson-Regular": require("../assets/images/fonts/TTF/Atkinson-Hyperlegible-Regular-102.ttf"),
@@ -33,6 +49,52 @@ export default function RootLayout() {
 
   const loginRedirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * Handle splash screen hiding
+   * Called by SplashScreen component after fade-out animation completes
+   */
+  const handleSplashHide = () => {
+    if (splashMounted) {
+      setSplashMounted(false);
+    }
+  };
+
+  /**
+   * Track app readiness from auth initialization.
+   */
+  useEffect(() => {
+    if (authChecked) {
+      setAppReady(true);
+    }
+  }, [authChecked]);
+
+  /**
+   * Keep splash visible long enough to be perceived on Expo Go.
+   */
+  useEffect(() => {
+    const minDuration =
+      settings.splashMinDurationMs > 0
+        ? settings.splashMinDurationMs
+        : DEFAULT_MIN_SPLASH_DURATION_MS;
+
+    const timer = setTimeout(() => {
+      setMinSplashElapsed(true);
+    }, minDuration);
+
+    return () => clearTimeout(timer);
+  }, [settings.splashMinDurationMs]);
+
+  /**
+   * Start splash fade-out only after both conditions are met:
+   * 1) minimum splash duration elapsed
+   * 2) app is ready
+   */
+  useEffect(() => {
+    if (minSplashElapsed && appReady) {
+      setSplashVisible(false);
+    }
+  }, [minSplashElapsed, appReady]);
+
   // Check token + whether to show disclosure
   useEffect(() => {
     if (!navState?.key) return;
@@ -42,7 +104,7 @@ export default function RootLayout() {
       const authed = !!token;
       setHasToken(authed);
       setAuthed(authed);
-      setAuthChecked(true);
+      setAuthChecked(true); // Triggers splash fade-out via effect above
 
       // Only show disclosure if user is NOT logged in
       if (!authed) {
@@ -120,7 +182,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <SettingsProvider>
+      <TutorialProvider autoStartEnabled={!splashMounted && appReady}>
         <Stack screenOptions={{ headerShown: false }} />
         <StatusBar style="auto" />
         <DisclosureModal
@@ -128,7 +190,41 @@ export default function RootLayout() {
           onAccept={onAcceptDisclosure}
           onDecline={onDeclineDisclosure}
         />
-      </SettingsProvider>
+        <TutorialLayer />
+
+        {/* Render splash last so it stays visually above navigator content. */}
+        {splashMounted && (
+          <SplashScreen
+            isVisible={splashVisible}
+            onHide={handleSplashHide}
+            reduceMotion={settings.reduceMotion}
+          />
+        )}
+      </TutorialProvider>
     </ThemeProvider>
+  );
+}
+
+function TutorialLayer() {
+  const { visible, closeTutorial } = useTutorial();
+
+  return (
+    <TutorialOverlay
+      visible={visible}
+      steps={TUTORIAL_STEPS}
+      onClose={closeTutorial}
+    />
+  );
+}
+
+/**
+ * RootLayout: Outer wrapper component
+ * Wraps RootContent with SettingsProvider so RootContent can use useSettings() hook
+ */
+export default function RootLayout() {
+  return (
+    <SettingsProvider>
+      <RootContent />
+    </SettingsProvider>
   );
 }

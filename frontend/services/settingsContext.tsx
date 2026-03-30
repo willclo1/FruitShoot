@@ -20,7 +20,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     largeText: false,
     reduceMotion: false,
     largeTouchTargets: false,
-    accessibleFont: false
+    accessibleFont: false,
+    splashMinDurationMs: 2200,
   });
 
   const [loaded, setLoaded] = useState(false);
