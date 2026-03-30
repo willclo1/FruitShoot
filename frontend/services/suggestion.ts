@@ -21,11 +21,13 @@ export async function getRecipeSuggestions({
   ripeness,
   fruitConfidence,
   ripenessConfidence,
+  limit,
 }: {
   fruit: string;
   ripeness: string;
   fruitConfidence?: number;
   ripenessConfidence?: number;
+  limit?: number;
 }): Promise<RecipeSuggestionResponse> {
   const res = await apiFetch("/recipes/suggestions", {
     method: "POST",
@@ -34,6 +36,7 @@ export async function getRecipeSuggestions({
       ripeness,
       fruit_confidence: fruitConfidence ?? 1,
       ripeness_confidence: ripenessConfidence ?? 1,
+      limit: limit ?? 5,
     }),
   });
 

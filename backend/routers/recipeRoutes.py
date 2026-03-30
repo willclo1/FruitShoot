@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from pydantic import BaseModel, Field
 from database.connect import get_db
-from typing import List
+from typing import List, Optional
 from models.recipes import Recipe
 from models.saved_recipes import SavedRecipe
 from datetime import datetime
@@ -12,12 +12,19 @@ from auth.deps import get_current_user
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
 
+# ---------------------------------------------------------------------------
+# Pydantic schemas
+# ---------------------------------------------------------------------------
+
 class RecipeSuggestionRequest(BaseModel):
     fruit: str
     ripeness: str
     fruit_confidence: float = 1.0
     ripeness_confidence: float = 1.0
-    limit: int = 5
+    fruit_probs: Optional[List[float]] = None
+    ripeness_probs: Optional[List[float]] = None
+    limit: int = 20  # ← default raised from 5
+
 
 class PublicRecipeResponse(BaseModel):
     id: int
@@ -31,6 +38,7 @@ class PublicRecipeResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class RecipeSuggestionItem(BaseModel):
     id: int
@@ -85,7 +93,396 @@ class SaveRecipeResponse(BaseModel):
     is_saved: bool
 
 
+# ---------------------------------------------------------------------------
+# SCORING ENGINE
+# ---------------------------------------------------------------------------
+#
+# FRUIT_LABELS    = ["Apple", "Banana", "Strawberry", "Non-Fruit"]  # idx 0-3
+# RIPENESS_LABELS = ["Ripe", "Rotten", "N/A", "Underripe"]          # idx 0-3
+#
+# For real fruits (f_idx < 3), predict.py masks index 2 (N/A) to -inf, so
+# only three ripeness states are reachable: Ripe(0), Rotten(1), Underripe(3).
+#
+# Score breakdown (max ≈ 93):
+#   ┌──────────────────────────────────────┬──────┐
+#   │ Fruit keyword in ingredients list    │  50  │
+#   │ Fruit keyword in title               │  30  │
+#   │ Fruit keyword in instructions only   │  20  │
+#   │ Secondary / flavour-pair keywords    │   3  │
+#   │ Ripeness technique cluster (best)    │  35  │
+#   │ Confidence bonus                     │  5–10│
+#   │ Soft ripeness bonus (prob-weighted)  │   0–5│
+#   └──────────────────────────────────────┴──────┘
+#
+# Label thresholds (calibrated to real distribution):
+#   92+  → Excellent  (ingredients + perfect technique + flavour pairs)
+#   88+  → Good       (ingredients + perfect technique)
+#   65+  → Fair       (title + technique, or ingredients + weak technique)
+#   <65  → Weak
+#
+# A recipe with no primary fruit keyword scores 0 and is excluded entirely.
+# ---------------------------------------------------------------------------
 
+FRUIT_PROFILE: dict[str, dict] = {
+    "apple": {
+        "primary": [
+            "apple", "apples", "applesauce", "apple sauce",
+            "apple cider", "apple juice", "cider",
+        ],
+        "secondary": [
+            "cinnamon", "caramel", "walnut", "walnuts",
+            "pecan", "pecans", "brown sugar", "clove",
+            "nutmeg", "allspice", "maple",
+        ],
+    },
+    "banana": {
+        "primary": [
+            "banana", "bananas", "plantain", "plantains",
+        ],
+        "secondary": [
+            "peanut butter", "chocolate", "oat", "oats",
+            "honey", "vanilla", "cinnamon", "rum", "coconut",
+        ],
+    },
+    "strawberry": {
+        "primary": [
+            "strawberry", "strawberries", "strawberry jam",
+            "strawberry sauce", "strawberry puree",
+        ],
+        "secondary": [
+            "cream", "whipped cream", "shortcake", "vanilla",
+            "lemon", "honey", "balsamic", "chocolate", "mint", "rhubarb",
+        ],
+    },
+}
+
+# RIPENESS_LABELS indices reachable for our fruits:
+#   0 = Ripe  |  1 = Rotten  |  3 = Underripe
+#
+# Each cluster: (trigger_keywords, max_points, human_readable_reason)
+# Only the highest-scoring cluster per recipe is used.
+RIPENESS_TECHNIQUE_MAP: dict[str, dict[str, list[tuple[list[str], int, str]]]] = {
+    "apple": {
+        "ripe": [
+            (
+                [
+                    "fresh", "raw", "slice", "sliced", "snack",
+                    "salad", "dip", "yogurt", "parfait",
+                    "smoothie", "juice", "bowl",
+                ],
+                35,
+                "Ripe apples shine fresh or lightly dressed",
+            ),
+            (
+                [
+                    "pie", "tart", "galette", "bake", "baked",
+                    "crumble", "crisp", "sauce", "compote",
+                ],
+                22,
+                "Classic baking is also a great use",
+            ),
+        ],
+        "underripe": [
+            (
+                [
+                    "bake", "baked", "roast", "roasted", "poach", "poached",
+                    "sauté", "sautéed", "caramelise", "caramelize",
+                    "pie", "tart", "galette", "crumble", "crisp",
+                    "compote", "sauce", "butter", "chutney",
+                    "pickle", "pickled", "jam", "preserve",
+                ],
+                35,
+                "Heat or pickling tames a tart underripe apple",
+            ),
+            (
+                ["slaw", "coleslaw", "salad"],
+                18,
+                "The crisp texture works well raw in salads",
+            ),
+        ],
+        "rotten": [
+            (
+                [
+                    "smoothie", "blend", "blended", "juice",
+                    "sauce", "applesauce", "apple sauce", "butter",
+                    "jam", "jelly", "compote", "preserve",
+                    "muffin", "muffins", "cake", "loaf", "bread",
+                    "pancake", "pancakes", "waffle", "waffles",
+                    "vinegar", "ferment", "fermented",
+                ],
+                35,
+                "Oversoft apples are best blended, baked into batters, or preserved",
+            ),
+            (
+                ["soup", "purée", "puree"],
+                15,
+                "Pureeing completely masks texture issues",
+            ),
+        ],
+    },
+
+    "banana": {
+        "ripe": [
+            (
+                [
+                    "smoothie", "shake", "bowl", "acai",
+                    "yogurt", "parfait", "overnight oats",
+                    "pancake", "pancakes", "waffle", "waffles",
+                    "ice cream", "nice cream", "banana split",
+                    "snack", "fresh", "slice", "sliced",
+                    "cereal", "granola",
+                ],
+                35,
+                "A ripe banana is perfect fresh, sliced, or blended",
+            ),
+            (
+                [
+                    "muffin", "muffins", "bread", "loaf",
+                    "cookie", "cookies", "bar", "bars", "cake",
+                ],
+                20,
+                "Still great for baking",
+            ),
+        ],
+        "underripe": [
+            (
+                [
+                    "fry", "fried", "deep fry", "deep fried",
+                    "sauté", "sautéed", "roast", "roasted",
+                    "grill", "grilled", "cook", "cooked", "bake", "baked",
+                    "chip", "chips", "crispy",
+                    "curry", "stew", "savoury", "savory",
+                    "plantain", "tostones", "porridge", "oatmeal",
+                ],
+                35,
+                "Starchy underripe bananas excel in cooked and savoury dishes",
+            ),
+            (
+                ["smoothie", "overnight oats"],
+                12,
+                "Blending or soaking softens the starchiness",
+            ),
+        ],
+        "rotten": [
+            (
+                [
+                    "banana bread", "banana loaf", "bread", "loaf",
+                    "muffin", "muffins", "cake", "cupcake", "cupcakes",
+                    "pancake", "pancakes", "waffle", "waffles",
+                    "cookie", "cookies", "brownie", "brownies",
+                    "bar", "bars", "batter",
+                ],
+                35,
+                "Overripe bananas are the secret ingredient in banana bread & bakes",
+            ),
+            (
+                [
+                    "smoothie", "blend", "blended", "ice cream",
+                    "nice cream", "milkshake", "shake",
+                    "sauce", "caramel", "pudding",
+                ],
+                20,
+                "Blending hides texture while keeping the intense sweetness",
+            ),
+        ],
+    },
+
+    "strawberry": {
+        "ripe": [
+            (
+                [
+                    "fresh", "raw", "slice", "sliced",
+                    "shortcake", "tart", "pavlova", "cheesecake",
+                    "salad", "fruit salad", "bowl",
+                    "yogurt", "parfait", "dip", "chocolate dip",
+                    "smoothie", "shake", "juice", "lemonade",
+                    "ice cream", "sorbet", "gelato",
+                    "garnish", "topping", "sauce", "coulis",
+                ],
+                35,
+                "Peak-ripe strawberries are best fresh or barely cooked",
+            ),
+            (
+                ["jam", "jelly", "preserve", "compote"],
+                18,
+                "Also excellent in jams and preserves",
+            ),
+        ],
+        "underripe": [
+            (
+                [
+                    "macerate", "macerated", "pickle", "pickled",
+                    "roast", "roasted", "bake", "baked",
+                    "compote", "sauce", "coulis",
+                    "jam", "jelly", "preserve",
+                    "syrup", "shrub", "vinegar",
+                    "sauté", "sautéed", "grill", "grilled",
+                ],
+                35,
+                "Macerating or cooking coaxes sweetness from an underripe strawberry",
+            ),
+            (
+                ["smoothie", "blend", "blended"],
+                15,
+                "Blending with sweetener compensates for low natural sugar",
+            ),
+        ],
+        "rotten": [
+            (
+                [
+                    "jam", "jelly", "preserve", "compote",
+                    "sauce", "coulis", "syrup",
+                    "smoothie", "blend", "blended",
+                    "cake", "muffin", "muffins", "bread", "loaf",
+                    "pancake", "pancakes",
+                    "vinegar", "shrub", "sorbet", "ice cream",
+                ],
+                35,
+                "Very ripe strawberries are perfect for jams, sauces, and blended dishes",
+            ),
+            (
+                ["soup", "gazpacho"],
+                12,
+                "Works in chilled strawberry soups too",
+            ),
+        ],
+    },
+}
+
+_FRUIT_ALIASES: dict[str, str] = {
+    "apple":      "apple",
+    "banana":     "banana",
+    "strawberry": "strawberry",
+}
+_RIPENESS_ALIASES: dict[str, str] = {
+    "ripe":      "ripe",
+    "underripe": "underripe",
+    "rotten":    "rotten",
+    "n/a":       "ripe",
+}
+
+
+def _norm(value: str, alias_map: dict[str, str]) -> str:
+    return alias_map.get(value.strip().lower(), value.strip().lower())
+
+
+def _contains_any(text: str, keywords: list[str]) -> bool:
+    return any(kw in text for kw in keywords)
+
+
+def score_recipe(
+    recipe: Recipe,
+    fruit: str,
+    ripeness: str,
+    fruit_confidence: float = 1.0,
+    ripeness_confidence: float = 1.0,
+    ripeness_probs: Optional[List[float]] = None,
+) -> tuple[float, str]:
+    """
+    Score a recipe against a detected fruit and ripeness state.
+    Returns (score, reason) — score of 0 means exclude from results.
+
+    Score anatomy:
+      1. Fruit presence       0–50 pts  (ingredients > title > instructions)
+      2. Flavour pairs        0–3  pts  (secondary keyword bonus)
+      3. Ripeness technique   0–35 pts  (best matching cluster only)
+      4. Confidence bonus     5–10 pts  (geometric mean; 5 flat for defaults)
+      5. Soft ripeness bonus  0–5  pts  (neighbour states via prob vector)
+
+    Label thresholds:
+      92+  Excellent  |  88+  Good  |  65+  Fair  |  <65  Weak
+    """
+    fruit_key    = _norm(fruit, _FRUIT_ALIASES)
+    ripeness_key = _norm(ripeness, _RIPENESS_ALIASES)
+
+    profile = FRUIT_PROFILE.get(fruit_key)
+    if profile is None:
+        haystack = f"{recipe.title} {recipe.ingredients_description} {recipe.instructions_description}".lower()
+        if fruit_key in haystack:
+            return 30.0, f"Contains {fruit}"
+        return 0.0, ""
+
+    ingredients_text  = recipe.ingredients_description.lower()
+    title_text        = recipe.title.lower()
+    instructions_text = recipe.instructions_description.lower()
+    full_text         = f"{title_text} {ingredients_text} {instructions_text}"
+
+    # ── 1. Fruit presence ────────────────────────────────────────────────
+    fruit_score  = 0
+    reason_parts: list[str] = []
+
+    if _contains_any(ingredients_text, profile["primary"]):
+        fruit_score = 50
+        reason_parts.append(f"Uses {fruit}")
+    elif _contains_any(title_text, profile["primary"]):
+        fruit_score = 30
+        reason_parts.append(f"Features {fruit}")
+    elif _contains_any(instructions_text, profile["primary"]):
+        fruit_score = 20
+        reason_parts.append(f"Mentions {fruit}")
+    else:
+        return 0.0, ""
+
+    # ── 2. Flavour-pair bonus (small — prevents inflating rank) ──────────
+    if _contains_any(full_text, profile["secondary"]):
+        fruit_score += 3
+        reason_parts.append("Complementary flavours")
+
+    # ── 3. Ripeness technique match ───────────────────────────────────────
+    technique_map = RIPENESS_TECHNIQUE_MAP.get(fruit_key, {})
+    clusters      = technique_map.get(ripeness_key, [])
+    best_pts      = 0
+    best_reason   = ""
+
+    for keywords, pts, label in clusters:
+        if _contains_any(full_text, keywords) and pts > best_pts:
+            best_pts    = pts
+            best_reason = label
+
+    if best_pts:
+        reason_parts.append(best_reason)
+    elif clusters:
+        best_pts = 5
+        reason_parts.append(f"May suit {ripeness.lower()} {fruit.lower()}")
+
+    ripeness_score = best_pts
+
+    # ── 4. Confidence bonus ───────────────────────────────────────────────
+    # Both exactly 1.0 → caller passed defaults, not real model output.
+    # Give a flat 5 pts so genuine high-confidence results rank above them.
+    if fruit_confidence == 1.0 and ripeness_confidence == 1.0:
+        confidence_bonus = 5.0
+    else:
+        combined_conf    = (fruit_confidence * ripeness_confidence) ** 0.5
+        confidence_bonus = round(10.0 * combined_conf, 2)
+
+    # ── 5. Soft ripeness bonus ────────────────────────────────────────────
+    # RIPENESS_LABELS = ["Ripe", "Rotten", "N/A", "Underripe"]
+    #                     idx 0    idx 1    idx 2    idx 3
+    soft_bonus = 0.0
+    if ripeness_probs and len(ripeness_probs) >= 4:
+        neighbour_index_map = {0: "ripe", 1: "rotten", 3: "underripe"}
+        for idx, label in neighbour_index_map.items():
+            if label == ripeness_key:
+                continue
+            neighbour_prob = ripeness_probs[idx]
+            if neighbour_prob < 0.10:
+                continue
+            for keywords, pts, _ in technique_map.get(label, []):
+                if _contains_any(full_text, keywords):
+                    soft_bonus += pts * neighbour_prob * 0.15
+                    break
+
+    soft_bonus = min(round(soft_bonus, 2), 5.0)
+
+    total  = round(fruit_score + ripeness_score + confidence_bonus + soft_bonus, 2)
+    reason = " · ".join(reason_parts) if reason_parts else "Possible match"
+    return total, reason
+
+
+# ---------------------------------------------------------------------------
+# ROUTES
+# ---------------------------------------------------------------------------
 
 @router.post("/", status_code=201, response_model=RecipeResponse)
 def create_recipe(
@@ -105,40 +502,6 @@ def create_recipe(
     return new_recipe
 
 
-def score_recipe(recipe: Recipe, fruit: str, ripeness: str):
-    text = f"{recipe.title} {recipe.ingredients_description} {recipe.instructions_description}".lower()
-
-    fruit = fruit.lower()
-    ripeness = ripeness.lower()
-
-    score = 0
-    reason_parts = []
-    fruit_matched = False
-
-    if fruit in recipe.ingredients_description.lower():
-        score += 50
-        fruit_matched = True
-        reason_parts.append(f"Uses {fruit}")
-    elif fruit in recipe.title.lower():
-        score += 30
-        fruit_matched = True
-        reason_parts.append(f"Features {fruit}")
-
-    if fruit_matched:
-        if "over" in ripeness and any(k in text for k in ["bread", "bake", "cake", "muffin", "smoothie"]):
-            score += 30
-            reason_parts.append("Best for overripe fruit")
-        elif "ripe" in ripeness and any(k in text for k in ["fresh", "salad", "bowl", "smoothie"]):
-            score += 20
-            reason_parts.append("Good for ripe fruit")
-        elif "under" in ripeness and any(k in text for k in ["cook", "roast", "fry"]):
-            score += 20
-            reason_parts.append("Better when cooked")
-
-    reason = " · ".join(reason_parts) if reason_parts else "Possible match"
-    return score, reason
-
-
 @router.post("/suggestions", response_model=RecipeSuggestionResponse)
 def suggest_recipes(
     payload: RecipeSuggestionRequest,
@@ -147,14 +510,19 @@ def suggest_recipes(
 ):
     recipes = db.execute(
         select(Recipe)
-        .where(Recipe.user_id == current_user)
         .order_by(Recipe.created_at.desc())
     ).scalars().all()
 
     scored = []
     for r in recipes:
-        score, reason = score_recipe(r, payload.fruit, payload.ripeness)
-
+        score, reason = score_recipe(
+            recipe=r,
+            fruit=payload.fruit,
+            ripeness=payload.ripeness,
+            fruit_confidence=payload.fruit_confidence,
+            ripeness_confidence=payload.ripeness_confidence,
+            ripeness_probs=payload.ripeness_probs,
+        )
         if score > 0:
             scored.append(
                 RecipeSuggestionItem(
@@ -260,21 +628,6 @@ def get_saved_recipes(
 
     return results
 
-class PublicRecipeResponse(BaseModel):
-    id: int
-    user_id: int
-    title: str
-    ingredients_description: str
-    instructions_description: str
-    created_at: datetime
-    is_saved: bool
-    save_count: int
-
-    class Config:
-        from_attributes = True
-
-
-
 
 @router.post("/{recipe_id}/save", response_model=SaveRecipeResponse)
 def save_recipe(
@@ -329,6 +682,7 @@ def unsave_recipe(
     db.commit()
 
     return SaveRecipeResponse(recipe_id=recipe_id, is_saved=False)
+
 
 @router.get("/public/{recipe_id}", response_model=PublicRecipeResponse)
 def get_public_recipe(
@@ -440,4 +794,3 @@ def delete_recipe(
 
     db.delete(recipe)
     db.commit()
-
