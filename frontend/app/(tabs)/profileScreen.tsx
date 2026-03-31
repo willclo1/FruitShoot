@@ -23,6 +23,7 @@ import {
   useFontStyle,
   useTouchTarget,
 } from "@/services/settingsContext";
+import TourTarget from "@/components/tutorial/TourTarget";
 
 const CAMERA_GREEN = "#1F4C47";
 const CREAM = "#FAF7F2";
@@ -366,22 +367,26 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.actionsGrid}>
-            <ActionTile
-              title="Create Recipe"
-              subtitle="Write one from scratch"
-              onPress={() => router.push("/create-recipe")}
-              fontBold={fontBold}
-              fontRegular={fontRegular}
-              finalScale={finalScale}
-            />
-            <ActionTile
-              title="Import Recipe"
-              subtitle="Paste a URL and review it"
-              onPress={() => router.push("/upload-recipe")}
-              fontBold={fontBold}
-              fontRegular={fontRegular}
-              finalScale={finalScale}
-            />
+            <TourTarget id="profile-create-recipe" style={{ flex: 1 }}>
+              <ActionTile
+                title="Create Recipe"
+                subtitle="Write one from scratch"
+                onPress={() => router.push("/create-recipe")}
+                fontBold={fontBold}
+                fontRegular={fontRegular}
+                finalScale={finalScale}
+              />
+            </TourTarget>
+            <TourTarget id="profile-import-recipe" style={{ flex: 1 }}>
+              <ActionTile
+                title="Import Recipe"
+                subtitle="Paste a URL and review it"
+                onPress={() => router.push("/upload-recipe")}
+                fontBold={fontBold}
+                fontRegular={fontRegular}
+                finalScale={finalScale}
+              />
+            </TourTarget>
           </View>
         </View>
 

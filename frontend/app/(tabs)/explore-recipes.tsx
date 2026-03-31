@@ -23,6 +23,7 @@ import {
   parseInstructions,
 } from "@/services/recipeFormat";
 import { useFontStyle, useTouchTarget } from "@/services/settingsContext";
+import TourTarget from "@/components/tutorial/TourTarget";
 
 // ─── Palette (matches app: ResultsScreen / HomeScreen) ──────────────────────
 const BRAND        = "#1F4C47";   // app's primary green
@@ -310,14 +311,15 @@ export default function ExploreRecipesScreen() {
   const header = (
     <View style={styles.headerWrap}>
       {/* ── Hero ── */}
-      <View style={styles.hero}>
-        <Image
-          source={require("../../assets/images/FruitShoot Logo.png")}
-          style={styles.heroLogo}
-          resizeMode="contain"
-          accessibilityIgnoresInvertColors
-          accessibilityLabel="FruitShoot logo"
-        />
+      <TourTarget id="explore-header">
+        <View style={styles.hero}>
+          <Image
+            source={require("../../assets/images/FruitShoot Logo.png")}
+            style={styles.heroLogo}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+            accessibilityLabel="FruitShoot logo"
+          />
         <Text style={[styles.heroEyebrow, { fontFamily: fontBold, fontSize: 11 * finalScale }]}>
           DISCOVER
         </Text>
@@ -335,7 +337,8 @@ export default function ExploreRecipesScreen() {
             </Text>
           </View>
         )}
-      </View>
+        </View>
+      </TourTarget>
 
       {/* ── Feed row ── */}
       <View style={styles.feedRow}>
