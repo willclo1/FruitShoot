@@ -27,6 +27,9 @@ class UserRegister(BaseModel):
 class RefreshRequest(BaseModel):
     refresh_token: str
 
+class AllergiesUpdate(BaseModel):
+    allergies: str = Field(max_length=2000)
+
 @router.post("/register", status_code=201)
 def register_user(user: UserRegister, db: Session = Depends(get_db)):
     existing_email = db.execute(select(User).where(User.email == user.email)).scalar_one_or_none()
@@ -116,5 +119,31 @@ def me(
     return {
         "id": user.id,
         "username": user.username,
-        "email": user.email
+        "email": user.email,
+        "allergies": user.allergies or "",
     }
+
+
+@router.get("/me/allergies")
+def get_allergies(
+    user_id: int = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"allergies": user.allergies or ""}
+
+
+@router.put("/me/allergies")
+def update_allergies(
+    body: AllergiesUpdate,
+    user_id: int = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.allergies = body.allergies
+    db.commit()
+    return {"allergies": user.allergies or ""}

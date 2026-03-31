@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, TIMESTAMP, text, ForeignKey
+from sqlalchemy import Column, String, Text, TIMESTAMP, text, ForeignKey
 from sqlalchemy.dialects.mysql import BIGINT
 from sqlalchemy.orm import relationship
 from models.base import Base
@@ -11,6 +11,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False)
     username = Column(String(50), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
+    allergies = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
 
     profile_id = Column(
