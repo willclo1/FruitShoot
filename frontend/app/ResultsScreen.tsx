@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import {
   Image,
+  Modal,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -18,11 +19,11 @@ import { addRetrainingSample } from "@/services/retrain";
 const BRAND = "#1F4C47";
 const BG = "#F6F3EE";
 
-// ─── Label maps — must stay in sync with model.py / predict.py ───────────────
-// fruit_map: {0: 'Apple', 1: 'Banana', 2: 'Strawberry', 3: 'Non-Fruit'}
-// ripe_map:  {0: 'Ripe',  1: 'Rotten', 2: 'N/A',        3: 'Underripe'}
+
 const RIPENESS_LABELS = ["Ripe", "Rotten", "N/A", "Underripe"] as const;
+const FRUIT_LABELS = ["Apple", "Banana", "Strawberry", "Non-Fruit"] as const;
 type RipenessIndex = 0 | 1 | 2 | 3;
+type FruitIndex = 0 | 1 | 2 | 3;
 
 // Each ripeness state gets its own accent colour for the badge.
 const RIPENESS_COLORS: Record<RipenessIndex, { bg: string; text: string; border: string }> = {
@@ -47,6 +48,203 @@ function confPct(conf: number) {
   return Math.round(conf * 100);
 }
 
+// ─── Correction Modal ─────────────────────────────────────────────────────────
+type CorrectionField = "fruit" | "ripeness" | "both";
+
+const FIELD_OPTIONS: { value: CorrectionField; label: string }[] = [
+  { value: "fruit",    label: "Fruit identification" },
+  { value: "ripeness", label: "Ripeness assessment" },
+  { value: "both",     label: "Both fruit & ripeness" },
+];
+
+/** A row of tappable pill chips — no native Picker needed. */
+function ChipSelector<T extends number>({
+  options,
+  selected,
+  onSelect,
+  fontBold,
+  finalScale,
+}: {
+  options: readonly string[];
+  selected: T;
+  onSelect: (v: T) => void;
+  fontBold: string;
+  finalScale: number;
+}) {
+  return (
+    <View style={chipStyles.row}>
+      {options.map((label, idx) => {
+        const active = idx === selected;
+        return (
+          <Pressable
+            key={idx}
+            onPress={() => onSelect(idx as T)}
+            style={({ pressed }) => [
+              chipStyles.chip,
+              active && chipStyles.chipActive,
+              pressed && !active && chipStyles.chipPressed,
+            ]}
+          >
+            <Text
+              style={[
+                chipStyles.chipText,
+                active && chipStyles.chipTextActive,
+                { fontFamily: fontBold, fontSize: 13 * finalScale },
+              ]}
+            >
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+interface CorrectionModalProps {
+  visible: boolean;
+  currentFruitIndex: FruitIndex;
+  currentRipenessIndex: RipenessIndex;
+  fontBold: string;
+  finalScale: number;
+  onSubmit: (correctedFruitIndex: FruitIndex, correctedRipenessIndex: RipenessIndex) => void;
+  onCancel: () => void;
+}
+
+function CorrectionModal({
+  visible,
+  currentFruitIndex,
+  currentRipenessIndex,
+  fontBold,
+  finalScale,
+  onSubmit,
+  onCancel,
+}: CorrectionModalProps) {
+  const [field, setField] = useState<CorrectionField>("fruit");
+  const [correctedFruit, setCorrectedFruit] = useState<FruitIndex>(currentFruitIndex);
+  const [correctedRipeness, setCorrectedRipeness] = useState<RipenessIndex>(currentRipenessIndex);
+
+  const showFruitChips    = field === "fruit"    || field === "both";
+  const showRipenessChips = field === "ripeness" || field === "both";
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onCancel}
+    >
+      <View style={modalStyles.overlay}>
+        <View style={modalStyles.sheet}>
+          {/* Header */}
+          <View style={modalStyles.header}>
+            <Text style={[modalStyles.title, { fontFamily: fontBold, fontSize: 18 * finalScale }]}>
+              What was incorrect?
+            </Text>
+            <Pressable onPress={onCancel} style={modalStyles.closeBtn} accessibilityLabel="Close">
+              <Text style={[modalStyles.closeBtnText, { fontSize: 18 * finalScale }]}>✕</Text>
+            </Pressable>
+          </View>
+
+          <Text style={[modalStyles.subtitle, { fontFamily: fontBold, fontSize: 13 * finalScale }]}>
+            Help us improve by selecting what the model got wrong.
+          </Text>
+
+          {/* Which field was wrong */}
+          <Text style={[modalStyles.label, { fontFamily: fontBold, fontSize: 13 * finalScale }]}>
+            What was wrong?
+          </Text>
+          <View style={chipStyles.row}>
+            {FIELD_OPTIONS.map(({ value, label }) => {
+              const active = field === value;
+              return (
+                <Pressable
+                  key={value}
+                  onPress={() => setField(value)}
+                  style={({ pressed }) => [
+                    chipStyles.chip,
+                    active && chipStyles.chipActive,
+                    pressed && !active && chipStyles.chipPressed,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      chipStyles.chipText,
+                      active && chipStyles.chipTextActive,
+                      { fontFamily: fontBold, fontSize: 13 * finalScale },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Correct fruit */}
+          {showFruitChips && (
+            <>
+              <Text style={[modalStyles.label, { fontFamily: fontBold, fontSize: 13 * finalScale }]}>
+                Correct fruit
+              </Text>
+              <ChipSelector
+                options={FRUIT_LABELS}
+                selected={correctedFruit}
+                onSelect={setCorrectedFruit}
+                fontBold={fontBold}
+                finalScale={finalScale}
+              />
+            </>
+          )}
+
+          {/* Correct ripeness */}
+          {showRipenessChips && (
+            <>
+              <Text style={[modalStyles.label, { fontFamily: fontBold, fontSize: 13 * finalScale }]}>
+                Correct ripeness
+              </Text>
+              <ChipSelector
+                options={RIPENESS_LABELS}
+                selected={correctedRipeness}
+                onSelect={setCorrectedRipeness}
+                fontBold={fontBold}
+                finalScale={finalScale}
+              />
+            </>
+          )}
+
+          {/* Actions */}
+          <View style={modalStyles.actions}>
+            <Pressable
+              onPress={onCancel}
+              style={({ pressed }) => [modalStyles.cancelBtn, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={[modalStyles.cancelBtnText, { fontFamily: fontBold, fontSize: 15 * finalScale }]}>
+                Cancel
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() =>
+                onSubmit(
+                  showFruitChips    ? correctedFruit    : currentFruitIndex,
+                  showRipenessChips ? correctedRipeness : currentRipenessIndex,
+                )
+              }
+              style={({ pressed }) => [modalStyles.submitBtn, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={[modalStyles.submitBtnText, { fontFamily: fontBold, fontSize: 15 * finalScale }]}>
+                Submit
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function ResultsScreen() {
   const router = useRouter();
   const { settings, loaded } = useSettings();
@@ -66,7 +264,7 @@ export default function ResultsScreen() {
   }>();
 
   const fruit = params.fruit ?? "Unknown";
-  const fruitIndex = Number(params.fruit_index ?? "0");
+  const fruitIndex = Number(params.fruit_index ?? "0") as FruitIndex;
 
   // fruit_map index 3 = 'Non-Fruit'
   const isNonFruit =
@@ -75,12 +273,14 @@ export default function ResultsScreen() {
     fruitIndex === 3;
 
   const fruitConfidence = Number(params.fruitConfidence ?? "0");
-  const modelRipeness = params.ripeness ?? "N/A";      // raw backend label string
+  const modelRipeness = params.ripeness ?? "N/A";
   const ripenessConfidence = Number(params.ripenessConfidence ?? "0");
   const imageId = Number(params.image_id ?? "0");
-  const [liked, setLiked] = useState(false);
 
-  // ripe_map index used to drive the slider + pill UI — same as the backend index.
+  const [liked, setLiked] = useState(false);
+  const [disliked, setDisliked] = useState(false);
+  const [correctionModalVisible, setCorrectionModalVisible] = useState(false);
+
   const ripenessIndex: RipenessIndex | null = useMemo(() => {
     if (isNonFruit) return null;
     const idx = Number(params.ripeness_index);
@@ -88,7 +288,6 @@ export default function ResultsScreen() {
     return ripenessLabelToIndex(modelRipeness);
   }, [params.ripeness_index, modelRipeness, isNonFruit]);
 
-  /** Label shown in the info strip and pills — directly from the model's ripe_map. */
   const ripenessLabel = useMemo(() => {
     if (ripenessIndex === null) return null;
     return RIPENESS_LABELS[ripenessIndex];
@@ -108,10 +307,10 @@ export default function ResultsScreen() {
   const headline = useMemo(() => {
     if (isNonFruit) return "Not a fruit";
     switch (ripenessIndex) {
-      case 0: return "Ready to eat";        // Ripe
-      case 1: return "Past its prime";      // Rotten
-      case 2: return "Not applicable";      // N/A
-      case 3: return "Needs more time";     // Underripe
+      case 0: return "Ready to eat";
+      case 1: return "Past its prime";
+      case 2: return "Not applicable";
+      case 3: return "Needs more time";
       default: return "Results";
     }
   }, [ripenessIndex, isNonFruit]);
@@ -119,10 +318,10 @@ export default function ResultsScreen() {
   const hint = useMemo(() => {
     if (isNonFruit) return "This image does not appear to contain fruit.";
     switch (ripenessIndex) {
-      case 0: return "Best flavor right now.";                    // Ripe
-      case 1: return "Consider composting if it smells off.";    // Rotten
-      case 2: return "";                                          // N/A
-      case 3: return "Give it a little longer.";                  // Underripe
+      case 0: return "Best flavor right now.";
+      case 1: return "Consider composting if it smells off.";
+      case 2: return "";
+      case 3: return "Give it a little longer.";
       default: return "";
     }
   }, [ripenessIndex, isNonFruit]);
@@ -142,22 +341,48 @@ export default function ResultsScreen() {
   );
 
   const handleLike = async () => {
-    if (liked) return;
+    if (liked || disliked) return;
     if (!imageId) return;
-
     setLiked(true);
-
     try {
       await addRetrainingSample({
         image_id: imageId,
         fruit_index: fruitIndex,
-        ripeness_index: Number(params.ripeness_index ?? "0"), // send raw backend index
+        ripeness_index: Number(params.ripeness_index ?? "0"),
         fruit_confidence: fruitConfidence,
         ripeness_confidence: ripenessConfidence,
       });
     } catch (err) {
       console.error("Failed to add retraining sample", err);
       setLiked(false);
+    }
+  };
+
+
+  const handleDislike = () => {
+    if (liked || disliked) return;
+    if (!imageId) return;
+    setCorrectionModalVisible(true);
+  };
+
+
+  const handleCorrectionSubmit = async (
+    correctedFruitIndex: FruitIndex,
+    correctedRipenessIndex: RipenessIndex
+  ) => {
+    setCorrectionModalVisible(false);
+    setDisliked(true);
+    try {
+      await addRetrainingSample({
+        image_id: imageId,
+        fruit_index: correctedFruitIndex,
+        ripeness_index: correctedRipenessIndex,
+        fruit_confidence: fruitConfidence,
+        ripeness_confidence: ripenessConfidence,
+      });
+    } catch (err) {
+      console.error("Failed to add correction sample", err);
+      setDisliked(false);
     }
   };
 
@@ -348,22 +573,19 @@ export default function ResultsScreen() {
           </View>
         )}
 
-        <View style={styles.feedbackContainer}>
+        {/* ── Feedback buttons ── */}
+        <View style={styles.feedbackRow}>
+          {/* Like */}
           <Pressable
             onPress={handleLike}
             style={({ pressed }) => [
               styles.likeButton,
-              {
-                minHeight: tt.minHeight,
-                borderRadius: tt.borderRadius,
-              },
+              { minHeight: tt.minHeight, borderRadius: tt.borderRadius, flex: 1 },
               liked && styles.likeButtonActive,
-              pressed && !liked && styles.likeButtonPressed,
+              pressed && !liked && !disliked && styles.likeButtonPressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel={
-              liked ? "Saved for improvement" : "Looks right"
-            }
+            accessibilityLabel={liked ? "Saved for improvement" : "Looks right"}
           >
             <Text
               style={[
@@ -374,15 +596,46 @@ export default function ResultsScreen() {
             >
               {liked ? "✓" : "♡"}
             </Text>
-
             <Text
               style={[
                 styles.likeText,
                 liked && styles.likeTextActive,
-                { fontFamily: fontBold, fontSize: 15 * finalScale },
+                { fontFamily: fontBold, fontSize: 13 * finalScale },
               ]}
             >
-              {liked ? "Saved for improvement" : "Looks Right"}
+              {liked ? "Saved!" : "Looks Right"}
+            </Text>
+          </Pressable>
+
+          {/* Dislike */}
+          <Pressable
+            onPress={handleDislike}
+            style={({ pressed }) => [
+              styles.dislikeButton,
+              { minHeight: tt.minHeight, borderRadius: tt.borderRadius, flex: 1 },
+              disliked && styles.dislikeButtonActive,
+              pressed && !liked && !disliked && styles.dislikeButtonPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={disliked ? "Correction saved" : "Mark result as incorrect"}
+          >
+            <Text
+              style={[
+                styles.dislikeIcon,
+                disliked && styles.dislikeIconActive,
+                { fontSize: 18 * finalScale },
+              ]}
+            >
+              {disliked ? "✓" : "✕"}
+            </Text>
+            <Text
+              style={[
+                styles.dislikeText,
+                disliked && styles.dislikeTextActive,
+                { fontFamily: fontBold, fontSize: 13 * finalScale },
+              ]}
+            >
+              {disliked ? "Correction Saved" : "Mark as Incorrect"}
             </Text>
           </Pressable>
         </View>
@@ -414,10 +667,7 @@ export default function ResultsScreen() {
             }
             style={({ pressed }) => [
               styles.primaryAction,
-              {
-                minHeight: tt.minHeight,
-                borderRadius: tt.borderRadius,
-              },
+              { minHeight: tt.minHeight, borderRadius: tt.borderRadius },
               pressed && styles.pressed,
             ]}
           >
@@ -435,10 +685,7 @@ export default function ResultsScreen() {
             onPress={() => router.back()}
             style={({ pressed }) => [
               styles.secondaryAction,
-              {
-                minHeight: tt.minHeight,
-                borderRadius: tt.borderRadius,
-              },
+              { minHeight: tt.minHeight, borderRadius: tt.borderRadius },
               pressed && styles.pressed,
             ]}
           >
@@ -455,28 +702,30 @@ export default function ResultsScreen() {
 
         <View style={{ height: 28 }} />
       </ScrollView>
+
+      {/* ── Correction Modal ── */}
+      <CorrectionModal
+        visible={correctionModalVisible}
+        currentFruitIndex={fruitIndex}
+        currentRipenessIndex={ripenessIndex ?? 0}
+        fontBold={fontBold}
+        finalScale={finalScale}
+        onSubmit={handleCorrectionSubmit}
+        onCancel={() => setCorrectionModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BG },
   container: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 110 },
 
-  topBar: {
-    marginBottom: 10,
-  },
-  backLink: {
-    alignSelf: "flex-start",
-    paddingVertical: 4,
-  },
-  backLinkText: {
-    color: "#2A5C56",
-    fontWeight: "900",
-  },
-  backLinkPressed: {
-    opacity: 0.65,
-  },
+  topBar: { marginBottom: 10 },
+  backLink: { alignSelf: "flex-start", paddingVertical: 4 },
+  backLinkText: { color: "#2A5C56", fontWeight: "900" },
+  backLinkPressed: { opacity: 0.65 },
 
   brandLogo: { width: 140, height: 140, marginBottom: 6 },
   brandHeader: { alignItems: "center" },
@@ -526,11 +775,7 @@ const styles = StyleSheet.create({
   infoLabel: { color: "rgba(15,31,29,0.65)", fontWeight: "900" },
   infoValue: { marginTop: 6, color: "#0F1F1D", fontWeight: "900" },
   infoMuted: { color: "rgba(15,31,29,0.55)" },
-  divider: {
-    width: 1,
-    height: 34,
-    backgroundColor: "rgba(31,76,71,0.18)",
-  },
+  divider: { width: 1, height: 34, backgroundColor: "rgba(31,76,71,0.18)" },
 
   ripenessBlock: { marginTop: 18 },
   sectionTitle: {
@@ -547,17 +792,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  ripeBadgeLabel: {
-    fontWeight: "900",
-  },
-  ripeBadgeHint: {
-    fontWeight: "700",
-    opacity: 0.85,
-    textAlign: "center",
-  },
+  ripeBadgeLabel: { fontWeight: "900" },
+  ripeBadgeHint: { fontWeight: "700", opacity: 0.85, textAlign: "center" },
 
-  feedbackContainer: {
+  feedbackRow: {
     marginTop: 16,
+    flexDirection: "row",
+    gap: 10,
   },
 
   likeButton: {
@@ -567,35 +808,42 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    paddingHorizontal: 16,
+    gap: 8,
+    paddingHorizontal: 12,
     paddingVertical: 14,
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
   },
-  likeButtonPressed: {
-    transform: [{ scale: 0.98 }],
+  likeButtonPressed: { transform: [{ scale: 0.98 }] },
+  likeButtonActive: { backgroundColor: BRAND, borderColor: BRAND },
+  likeIcon: { color: BRAND, fontWeight: "900" },
+  likeIconActive: { color: "#fff" },
+  likeText: { color: BRAND, fontWeight: "900" },
+  likeTextActive: { color: "#fff" },
+
+  dislikeButton: {
+    backgroundColor: "#FFF4F2",
+    borderWidth: 1.5,
+    borderColor: "#F0B7AD",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
   },
-  likeButtonActive: {
-    backgroundColor: BRAND,
-    borderColor: BRAND,
-  },
-  likeIcon: {
-    color: BRAND,
-    fontWeight: "900",
-  },
-  likeIconActive: {
-    color: "#fff",
-  },
-  likeText: {
-    color: BRAND,
-    fontWeight: "900",
-  },
-  likeTextActive: {
-    color: "#fff",
-  },
+  dislikeButtonPressed: { transform: [{ scale: 0.98 }], opacity: 0.92 },
+  dislikeButtonActive: { backgroundColor: "#B8422E", borderColor: "#B8422E" },
+  dislikeIcon: { color: "#B8422E", fontWeight: "900" },
+  dislikeIconActive: { color: "#fff" },
+  dislikeText: { color: "#8A2C1D", fontWeight: "900" },
+  dislikeTextActive: { color: "#fff" },
 
   suggestCard: {
     marginTop: 18,
@@ -605,10 +853,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(31,76,71,0.10)",
     padding: 16,
   },
-  suggestTitle: {
-    color: BRAND,
-    fontWeight: "900",
-  },
+  suggestTitle: { color: BRAND, fontWeight: "900" },
   suggestSubtitle: {
     marginTop: 4,
     color: "rgba(15,31,29,0.68)",
@@ -623,10 +868,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  primaryActionText: {
-    color: "white",
-    fontWeight: "900",
-  },
+  primaryActionText: { color: "white", fontWeight: "900" },
 
   secondaryAction: {
     marginTop: 10,
@@ -638,12 +880,115 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  secondaryActionText: {
+  secondaryActionText: { color: "#28443F", fontWeight: "900" },
+
+  pressed: { opacity: 0.86 },
+});
+
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.48)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: BG,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 22,
+    paddingBottom: 38,
+    gap: 4,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  title: {
+    color: BRAND,
+    fontWeight: "900",
+  },
+  closeBtn: {
+    padding: 6,
+  },
+  closeBtnText: {
+    color: "rgba(15,31,29,0.5)",
+    fontWeight: "700",
+  },
+  subtitle: {
+    color: "rgba(15,31,29,0.6)",
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  label: {
+    color: BRAND,
+    fontWeight: "900",
+    marginTop: 14,
+    marginBottom: 4,
+  },
+
+  actions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 22,
+  },
+  cancelBtn: {
+    flex: 1,
+    backgroundColor: "#F4F6F3",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "rgba(31,76,71,0.18)",
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelBtnText: {
     color: "#28443F",
     fontWeight: "900",
   },
+  submitBtn: {
+    flex: 1,
+    backgroundColor: "#B8422E",
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  submitBtnText: {
+    color: "#fff",
+    fontWeight: "900",
+  },
+});
 
-  pressed: {
-    opacity: 0.86,
+const chipStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: "rgba(31,76,71,0.22)",
+    backgroundColor: "rgba(255,255,255,0.85)",
+  },
+  chipActive: {
+    backgroundColor: BRAND,
+    borderColor: BRAND,
+  },
+  chipPressed: {
+    opacity: 0.75,
+  },
+  chipText: {
+    color: BRAND,
+    fontWeight: "700",
+  },
+  chipTextActive: {
+    color: "#fff",
   },
 });
