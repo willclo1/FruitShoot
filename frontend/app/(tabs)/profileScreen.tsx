@@ -51,7 +51,10 @@ function ActionTile({
   finalScale: number;
 }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.actionTile, pressed && styles.pressed]}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.actionTile, pressed && styles.pressed]}
+    >
       <Text
         style={[
           styles.actionTileTitle,
@@ -67,6 +70,63 @@ function ActionTile({
         ]}
       >
         {subtitle}
+      </Text>
+    </Pressable>
+  );
+}
+
+function WideActionTile({
+  title,
+  subtitle,
+  onPress,
+  icon,
+  fontBold,
+  fontRegular,
+  finalScale,
+}: {
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  icon: keyof typeof Ionicons.glyphMap;
+  fontBold?: string;
+  fontRegular?: string;
+  finalScale: number;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.wideActionTile, pressed && styles.pressed]}
+    >
+      <View style={styles.wideActionIconWrap}>
+        <Ionicons name={icon} size={22} color={CAMERA_GREEN} />
+      </View>
+
+      <View style={styles.wideActionTextWrap}>
+        <Text
+          style={[
+            styles.wideActionTitle,
+            { fontFamily: fontBold, fontSize: 16 * finalScale },
+          ]}
+        >
+          {title}
+        </Text>
+        <Text
+          style={[
+            styles.wideActionSubtitle,
+            { fontFamily: fontRegular, fontSize: 12 * finalScale },
+          ]}
+        >
+          {subtitle}
+        </Text>
+      </View>
+
+      <Text
+        style={[
+          styles.wideActionArrow,
+          { fontFamily: fontBold, fontSize: 20 * finalScale },
+        ]}
+      >
+        →
       </Text>
     </Pressable>
   );
@@ -96,11 +156,16 @@ export default function ProfileScreen() {
 
   const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-  const displayName = useMemo(() => me?.username || "Your Profile", [me?.username]);
+  const displayName = useMemo(
+    () => me?.username || "Your Profile",
+    [me?.username]
+  );
 
   useFocusEffect(
     React.useCallback(() => {
-      tts.autoSay("Profile screen. Open your recipes, create a recipe, or import one.");
+      tts.autoSay(
+        "Profile screen. Open your recipes, create a recipe, import one, or view your images."
+      );
     }, [
       loaded,
       settings.ttsEnabled,
@@ -138,7 +203,9 @@ export default function ProfileScreen() {
           }
         }
       } catch (e: any) {
-        if (mounted) Alert.alert("Profile", e?.message || "Could not load profile");
+        if (mounted) {
+          Alert.alert("Profile", e?.message || "Could not load profile");
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -226,7 +293,10 @@ export default function ProfileScreen() {
 
       Alert.alert("Success", "Profile picture updated.");
     } catch (e: any) {
-      Alert.alert("Profile Photo", e?.message || "Could not upload profile picture.");
+      Alert.alert(
+        "Profile Photo",
+        e?.message || "Could not upload profile picture."
+      );
     } finally {
       setUploadingAvatar(false);
     }
@@ -270,7 +340,10 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.page}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.brandHeader}>
           <Image
             source={require("../../assets/images/FruitShoot Logo.png")}
@@ -300,7 +373,9 @@ export default function ProfileScreen() {
                     borderRadius: tt.borderRadius,
                   },
                 ]}
-                onPress={() => tts.say(`Profile screen. Logged in as ${displayName}.`)}
+                onPress={() =>
+                  tts.say(`Profile screen. Logged in as ${displayName}.`)
+                }
               >
                 <Text
                   style={[
@@ -317,7 +392,13 @@ export default function ProfileScreen() {
           <View style={styles.heroUnderline} />
 
           <View style={styles.identityRow}>
-            <Pressable onPress={onPickProfilePhoto} style={({ pressed }) => [styles.avatarCircle, pressed && styles.pressed]}>
+            <Pressable
+              onPress={onPickProfilePhoto}
+              style={({ pressed }) => [
+                styles.avatarCircle,
+                pressed && styles.pressed,
+              ]}
+            >
               {avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
               ) : (
@@ -379,52 +460,77 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Allergies section inside hero card */}
           <View style={styles.allergiesSection}>
-            <Text
-              style={[
-                styles.allergiesLabel,
-                { fontFamily: fontBold, fontSize: 14 * finalScale },
-              ]}
-            >
-              Allergies
-            </Text>
-
-            <View style={styles.chipContainer}>
-              {allergyList.map((item, idx) => (
-                <View key={idx} style={styles.chip}>
-                  <Text
-                    style={[
-                      styles.chipText,
-                      { fontFamily: fontRegular, fontSize: 13 * finalScale },
-                    ]}
-                  >
-                    {item}
-                  </Text>
-                  <Pressable
-                    onPress={() => removeAllergy(idx)}
-                    hitSlop={8}
-                    style={({ pressed }) => [styles.chipX, pressed && styles.pressed]}
-                  >
-                    <Text style={[styles.chipXText, { fontSize: 14 * finalScale }]}>✕</Text>
-                  </Pressable>
-                </View>
-              ))}
+            <View style={styles.sectionHeaderRow}>
+              <Text
+                style={[
+                  styles.allergiesLabel,
+                  { fontFamily: fontBold, fontSize: 14 * finalScale },
+                ]}
+              >
+                Allergies
+              </Text>
 
               <Pressable
                 onPress={openAllergyModal}
-                style={({ pressed }) => [styles.addChip, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.addMiniButton,
+                  pressed && styles.pressed,
+                ]}
               >
                 <Text
                   style={[
-                    styles.addChipText,
-                    { fontFamily: fontBold, fontSize: 13 * finalScale },
+                    styles.addMiniButtonText,
+                    { fontFamily: fontBold, fontSize: 12 * finalScale },
                   ]}
                 >
                   + Add
                 </Text>
               </Pressable>
             </View>
+
+            {allergyList.length ? (
+              <View style={styles.chipContainer}>
+                {allergyList.map((item, idx) => (
+                  <View key={idx} style={styles.chip}>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { fontFamily: fontRegular, fontSize: 13 * finalScale },
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                    <Pressable
+                      onPress={() => removeAllergy(idx)}
+                      hitSlop={8}
+                      style={({ pressed }) => [
+                        styles.chipX,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.chipXText,
+                          { fontSize: 14 * finalScale },
+                        ]}
+                      >
+                        ✕
+                      </Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text
+                style={[
+                  styles.emptyAllergyText,
+                  { fontFamily: fontRegular, fontSize: 13 * finalScale },
+                ]}
+              >
+                No allergies added yet.
+              </Text>
+            )}
           </View>
         </View>
 
@@ -477,6 +583,7 @@ export default function ProfileScreen() {
                 finalScale={finalScale}
               />
             </TourTarget>
+
             <TourTarget id="profile-import-recipe" style={{ flex: 1 }}>
               <ActionTile
                 title="Import Recipe"
@@ -490,7 +597,38 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Allergy modal */}
+        <View style={styles.card}>
+          <Text
+            style={[
+              styles.cardTitle,
+              { fontFamily: fontBold, fontSize: 16 * finalScale },
+            ]}
+          >
+            Your Content
+          </Text>
+
+          <Text
+            style={[
+              styles.cardSubtitle,
+              { fontFamily: fontRegular, fontSize: 12 * finalScale },
+            ]}
+          >
+            View the fruit images you have uploaded to your account.
+          </Text>
+
+          <View style={styles.wideActionWrap}>
+            <WideActionTile
+              title="My Images"
+              subtitle="Browse your uploaded fruit images"
+              icon="images-outline"
+              onPress={() => router.push("/my-images")}
+              fontBold={fontBold}
+              fontRegular={fontRegular}
+              finalScale={finalScale}
+            />
+          </View>
+        </View>
+
         <Modal
           visible={allergyModalVisible}
           animationType="slide"
@@ -526,7 +664,10 @@ export default function ProfileScreen() {
               <View style={styles.modalButtons}>
                 <Pressable
                   onPress={() => setAllergyModalVisible(false)}
-                  style={({ pressed }) => [styles.modalCancel, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.modalCancel,
+                    pressed && styles.pressed,
+                  ]}
                 >
                   <Text
                     style={[
@@ -541,7 +682,10 @@ export default function ProfileScreen() {
                 <Pressable
                   onPress={saveAllergies}
                   disabled={savingAllergies}
-                  style={({ pressed }) => [styles.modalSave, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.modalSave,
+                    pressed && styles.pressed,
+                  ]}
                 >
                   {savingAllergies ? (
                     <ActivityIndicator color="#fff" />
@@ -571,7 +715,13 @@ export default function ProfileScreen() {
             More
           </Text>
 
-          <Pressable onPress={() => router.push("/about-us")} style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}>
+          <Pressable
+            onPress={() => router.push("/about-us")}
+            style={({ pressed }) => [
+              styles.linkRow,
+              pressed && styles.pressed,
+            ]}
+          >
             <Text
               style={[
                 styles.linkLabel,
@@ -580,11 +730,19 @@ export default function ProfileScreen() {
             >
               About FruitShoot
             </Text>
-            <Text style={[styles.linkArrow, { fontSize: 18 * finalScale }]}>→</Text>
+            <Text style={[styles.linkArrow, { fontSize: 18 * finalScale }]}>
+              →
+            </Text>
           </Pressable>
         </View>
 
-        <Pressable onPress={onLogout} style={({ pressed }) => [styles.logoutButton, pressed && styles.pressed]}>
+        <Pressable
+          onPress={onLogout}
+          style={({ pressed }) => [
+            styles.logoutButton,
+            pressed && styles.pressed,
+          ]}
+        >
           <Text
             style={[
               styles.logoutText,
@@ -612,7 +770,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(31,76,71,0.08)",
   },
-  heroTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
+  heroTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
   heroTitle: { fontWeight: "900", color: CAMERA_GREEN, flexShrink: 1 },
   heroUnderline: {
     height: 3,
@@ -623,7 +786,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  replayButton: { backgroundColor: "#2F3D39", paddingVertical: 8, justifyContent: "center", alignItems: "center" },
+  replayButton: {
+    backgroundColor: "#2F3D39",
+    paddingVertical: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   replayText: { color: "#fff", fontWeight: "800" },
 
   identityRow: { flexDirection: "row", alignItems: "center", gap: 14 },
@@ -651,6 +819,57 @@ const styles = StyleSheet.create({
   loadingRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   loadingText: { color: MUTED },
 
+  allergiesSection: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(31,76,71,0.08)",
+    paddingTop: 14,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 10,
+  },
+  allergiesLabel: { color: TEXT_DARK, fontWeight: "900" },
+  emptyAllergyText: { color: MUTED, lineHeight: 18 },
+  chipContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EDF5ED",
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingLeft: 12,
+    paddingRight: 6,
+    borderWidth: 1,
+    borderColor: "rgba(123,201,111,0.3)",
+  },
+  chipText: { color: TEXT_DARK },
+  chipX: {
+    marginLeft: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(23,48,44,0.10)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chipXText: { color: MUTED, fontWeight: "700" },
+  addMiniButton: {
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: "#F3F7F2",
+    borderWidth: 1,
+    borderColor: "rgba(31,76,71,0.10)",
+  },
+  addMiniButtonText: {
+    color: CAMERA_GREEN,
+    fontWeight: "900",
+  },
+
   card: {
     borderRadius: 22,
     backgroundColor: "rgba(255,255,255,0.94)",
@@ -675,7 +894,52 @@ const styles = StyleSheet.create({
   actionTileTitle: { color: CAMERA_GREEN, fontWeight: "900" },
   actionTileText: { marginTop: 8, color: MUTED, lineHeight: 18 },
 
-  linkRow: { marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 48 },
+  wideActionWrap: {
+    marginTop: 14,
+  },
+  wideActionTile: {
+    borderRadius: 20,
+    backgroundColor: "#F7F8F4",
+    borderWidth: 1,
+    borderColor: "rgba(31,76,71,0.08)",
+    padding: 14,
+    minHeight: 92,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  wideActionIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#ECF4EE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  wideActionTextWrap: {
+    flex: 1,
+  },
+  wideActionTitle: {
+    color: CAMERA_GREEN,
+    fontWeight: "900",
+  },
+  wideActionSubtitle: {
+    marginTop: 4,
+    color: MUTED,
+    lineHeight: 18,
+  },
+  wideActionArrow: {
+    color: CAMERA_GREEN,
+    fontWeight: "900",
+  },
+
+  linkRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 48,
+  },
   linkLabel: { color: TEXT_DARK, fontWeight: "800" },
   linkArrow: { color: CAMERA_GREEN, fontWeight: "900" },
 
@@ -689,49 +953,6 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   logoutText: { color: APPLE_RED, fontWeight: "900" },
-  pressed: { opacity: 0.86 },
-
-  allergiesSection: {
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(31,76,71,0.08)",
-    paddingTop: 14,
-  },
-  allergiesLabel: { color: TEXT_DARK, fontWeight: "900", marginBottom: 10 },
-  chipContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#EDF5ED",
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingLeft: 12,
-    paddingRight: 6,
-    borderWidth: 1,
-    borderColor: "rgba(123,201,111,0.3)",
-  },
-  chipText: { color: TEXT_DARK },
-  chipX: {
-    marginLeft: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "rgba(23,48,44,0.10)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  chipXText: { color: MUTED, fontWeight: "700" },
-  addChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: CAMERA_GREEN,
-    borderStyle: "dashed",
-  },
-  addChipText: { color: CAMERA_GREEN, fontWeight: "800" },
 
   modalOverlay: {
     flex: 1,
@@ -775,4 +996,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalSaveText: { color: "#fff", fontWeight: "900" },
+
+  pressed: { opacity: 0.86 },
 });

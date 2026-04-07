@@ -202,3 +202,32 @@ def get_avatar_url(
     return {
         "url": f"/uploads/{img.location}"
     }
+
+@app.get("/images")
+def get_images(
+    user_id: int = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    imgs = (
+        db.query(UserImage)
+        .filter(UserImage.user_id == user.id)
+        .order_by(UserImage.uploaded_at.desc())
+        .all()
+    )
+
+    if not imgs:
+        raise HTTPException(status_code=404, detail="No images found for user")
+
+    return [
+        {
+            "id": img.id,
+            "filename": img.location,
+            "url": f"/uploads/{img.location}",
+            "uploaded_at": img.uploaded_at,
+        }
+        for img in imgs
+    ]
