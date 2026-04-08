@@ -8,6 +8,7 @@ from auth.deps import get_current_user
 from dotenv import load_dotenv
 load_dotenv()
 
+from fastapi.middleware.cors import CORSMiddleware
 import os
 import uuid
 import shutil
@@ -27,11 +28,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from routers.clip import router as clip_router
+from routers.adminRoutes import router as admin_router
 from recipe.clipper import init_browser, shutdown_browser
 from routers.retraining import router as retraining_router
 
 from routers import userRoutes, recipeRoutes
 from models.users import Base, User
+from routers.adminAuth import router as admin_auth_router
+
 from models.images import UserImage
 from models.recipes import Recipe
 from database.connect import engine, get_db
@@ -59,6 +63,18 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="FruitShoot API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 Base.metadata.create_all(bind=engine)
 
 
@@ -73,6 +89,8 @@ app.include_router(userRoutes.router)
 app.include_router(clip_router) 
 app.include_router(recipeRoutes.router)
 app.include_router(retraining_router)
+app.include_router(admin_router)
+app.include_router(admin_auth_router)
 
 BACKEND_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BACKEND_DIR.parent
