@@ -29,13 +29,28 @@ jobs:
             git checkout main
             git reset --hard origin/main
 
+            # ───────── BACKEND (Docker) ─────────
             docker compose down --remove-orphans
             docker compose up -d --build
 
-            # Clean old Docker images/build cache after successful deploy
             docker image prune -af
             docker builder prune -af
 
+            # ───────── ADMIN BUILD ─────────
+            echo "Building admin panel..."
+
+            cd ~/FruitShoot/fruitshoot-admin
+            npm install
+            npm run build
+
+            # ───────── DEPLOY STATIC FILES ─────────
+            echo "Deploying admin static files..."
+
+            sudo rm -rf /var/www/fruitshoot-admin
+            sudo mkdir -p /var/www/fruitshoot-admin
+            sudo cp -r dist/* /var/www/fruitshoot-admin/
+
+            # ───────── FRONTEND (Expo) ─────────
             cd ~/FruitShoot/frontend
             npm install
 
@@ -49,5 +64,7 @@ jobs:
             tmux kill-session -t expo || true
             tmux new-session -d -s expo "~/run_expo.sh"
 
-            echo "Expo server started with ~/run_expo.sh in tmux session 'expo'"
+            echo "Expo server started in tmux"
+
+            echo "Deploy complete"
           EOF
