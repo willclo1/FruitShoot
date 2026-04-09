@@ -39,7 +39,6 @@ services:
         condition: service_healthy
     volumes:
       - ./database/data/images:/app/database/data/images
-      - ./backend/output:/app/backend/output
     ports:
       - "8000:8000"
 
