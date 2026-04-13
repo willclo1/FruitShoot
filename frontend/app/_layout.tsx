@@ -5,14 +5,14 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { SettingsProvider, useSettings } from "@/services/settingsContext";
 import { useEffect, useRef, useState } from "react";
 import * as SecureStore from "expo-secure-store";
-import { BackHandler } from "react-native";
+import { BackHandler, Dimensions } from "react-native";
 import { setAuthed, subscribeAuthed } from "@/services/authState";
 import { useFonts } from "expo-font";
 import DisclosureModal from "@/components/disclosureModal";
 import SplashScreen from "@/components/splash-screen";
-import TutorialOverlay from "@/components/tutorial/TutorialOverlay";
-import { TUTORIAL_STEPS } from "@/constants/tutorialSteps";
-import { TutorialProvider, useTutorial } from "@/services/tutorialContext";
+import CopilotTooltip from "@/components/tutorial/CopilotTooltip";
+import { TutorialProvider } from "@/services/tutorialContext";
+import { CopilotProvider } from "react-native-copilot";
 
 const LOGIN_ROUTE = "/login";
 const TABS_ROUTE = "/(tabs)";
@@ -182,38 +182,42 @@ function RootContent() {
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <TutorialProvider autoStartEnabled={!splashMounted && appReady}>
-        <Stack screenOptions={{ headerShown: false }} />
-        <StatusBar style="auto" />
-        <DisclosureModal
-          visible={showDisclosure}
-          onAccept={onAcceptDisclosure}
-          onDecline={onDeclineDisclosure}
-        />
-        <TutorialLayer />
-
-        {/* Render splash last so it stays visually above navigator content. */}
-        {splashMounted && (
-          <SplashScreen
-            isVisible={splashVisible}
-            onHide={handleSplashHide}
-            reduceMotion={settings.reduceMotion}
+      <CopilotProvider
+        overlay="svg"
+        tooltipComponent={CopilotTooltip}
+        stepNumberComponent={() => null}
+        backdropColor="rgba(0, 0, 0, 0.65)"
+        arrowColor="#FAF7F2"
+        tooltipStyle={{
+          borderRadius: 16,
+          padding: 0,
+          width: Dimensions.get("window").width - 32,
+          maxWidth: Dimensions.get("window").width - 32,
+          left: 16,
+          overflow: "visible",
+        }}
+        animated
+      >
+        <TutorialProvider autoStartEnabled={!splashMounted && appReady}>
+          <Stack screenOptions={{ headerShown: false }} />
+          <StatusBar style="auto" />
+          <DisclosureModal
+            visible={showDisclosure}
+            onAccept={onAcceptDisclosure}
+            onDecline={onDeclineDisclosure}
           />
-        )}
-      </TutorialProvider>
+
+          {/* Render splash last so it stays visually above navigator content. */}
+          {splashMounted && (
+            <SplashScreen
+              isVisible={splashVisible}
+              onHide={handleSplashHide}
+              reduceMotion={settings.reduceMotion}
+            />
+          )}
+        </TutorialProvider>
+      </CopilotProvider>
     </ThemeProvider>
-  );
-}
-
-function TutorialLayer() {
-  const { visible, closeTutorial } = useTutorial();
-
-  return (
-    <TutorialOverlay
-      visible={visible}
-      steps={TUTORIAL_STEPS}
-      onClose={closeTutorial}
-    />
   );
 }
 

@@ -26,7 +26,7 @@ import {
   useFontStyle,
   useTouchTarget,
 } from "@/services/settingsContext";
-import TourTarget from "@/components/tutorial/TourTarget";
+
 
 const CAMERA_GREEN = "#1F4C47";
 const CREAM = "#FAF7F2";
@@ -573,27 +573,23 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.actionsGrid}>
-            <TourTarget id="profile-create-recipe" style={{ flex: 1 }}>
-              <ActionTile
-                title="Create Recipe"
-                subtitle="Write one from scratch"
-                onPress={() => router.push("/create-recipe")}
-                fontBold={fontBold}
-                fontRegular={fontRegular}
-                finalScale={finalScale}
-              />
-            </TourTarget>
+            <ActionTile
+              title="Create Recipe"
+              subtitle="Write one from scratch"
+              onPress={() => router.push("/create-recipe")}
+              fontBold={fontBold}
+              fontRegular={fontRegular}
+              finalScale={finalScale}
+            />
 
-            <TourTarget id="profile-import-recipe" style={{ flex: 1 }}>
-              <ActionTile
-                title="Import Recipe"
-                subtitle="Paste a URL and review it"
-                onPress={() => router.push("/upload-recipe")}
-                fontBold={fontBold}
-                fontRegular={fontRegular}
-                finalScale={finalScale}
-              />
-            </TourTarget>
+            <ActionTile
+              title="Import Recipe"
+              subtitle="Paste a URL and review it"
+              onPress={() => router.push("/upload-recipe")}
+              fontBold={fontBold}
+              fontRegular={fontRegular}
+              finalScale={finalScale}
+            />
           </View>
         </View>
 
@@ -621,7 +617,7 @@ export default function ProfileScreen() {
               title="My Images"
               subtitle="Browse your uploaded fruit images"
               icon="images-outline"
-              onPress={() => router.push("/my-images")}
+              onPress={() => router.push("../my-images")}
               fontBold={fontBold}
               fontRegular={fontRegular}
               finalScale={finalScale}

@@ -1,96 +1,68 @@
+/**
+ * Tutorial step definitions for react-native-copilot.
+ *
+ * Each step maps to a CopilotStep via `name` (display title) and `order`.
+ * The `text` is shown in the tooltip. The `targetId` links to the
+ * CopilotStep's `name` prop used in components.
+ */
 export type TutorialStepConfig = {
+  /** Unique key & CopilotStep `name` prop */
   id: string;
-  route?: string;
-  targetId?: string;
-  placement?: "top" | "bottom" | "center";
+  /** Display order (1-indexed, passed to CopilotStep `order`) */
+  order: number;
+  /** Title shown in tooltip header */
   title: string;
-  description: string;
-  highlightLabel: string;
-  instruction?: string;
-  narration?: string;
+  /** Short description shown in tooltip body */
+  text: string;
 };
 
 export const TUTORIAL_STEPS: TutorialStepConfig[] = [
   {
-    id: "welcome",
-    route: "/",
-    placement: "center",
-    title: "Welcome to FruitShoot",
-    description:
-      "Analyze fruit ripeness instantly, discover the perfect recipes, and reduce food waste. Let's explore the key features.",
-    highlightLabel: "App Overview",
-    instruction: "Tap Next to learn about each feature.",
+    id: "Welcome",
+    order: 1,
+    title: "Welcome",
+    text: "This is FruitShoot! Scan fruit, get ripeness results, and discover recipes.",
   },
   {
-    id: "scan-fruit",
-    route: "/",
-    targetId: "home-upload-button",
-    placement: "top",
-    title: "Scan Your Fruit",
-    description:
-      "Take a photo or upload an image of any fruit. Our AI analyzes ripeness level and gives you instant insights.",
-    highlightLabel: "Upload Picture",
-    instruction: "Start here to begin analyzing fruit.",
+    id: "Scan Fruit",
+    order: 2,
+    title: "Scan Fruit",
+    text: "Tap here to upload or take a photo of your fruit.",
   },
   {
-    id: "ripeness-results",
-    route: "/",
-    placement: "center",
-    title: "Ripeness Results",
-    description:
-      "After scanning, you'll see detailed ripeness information. The app shows color, firmness, and ripeness stage to help you decide what to cook or when to eat it.",
-    highlightLabel: "Analysis Results",
-    instruction: "Results appear instantly after scanning.",
+    id: "Instructions",
+    order: 3,
+    title: "Instructions",
+    text: "Read how scanning works and what results mean.",
   },
   {
-    id: "create-recipes",
-    route: "/",
-    placement: "center",
-    title: "Create Recipes",
-    description:
-      "Build your own recipe cards with ingredients and step-by-step instructions. Perfect for storing family recipes or meal plans.",
-    highlightLabel: "Recipe Creation",
-    instruction: "Organize all your favorite recipes in one place.",
+    id: "Settings",
+    order: 4,
+    title: "Settings",
+    text: "Adjust voice, text size, and accessibility options.",
   },
   {
-    id: "import-recipes",
-    route: "/",
-    placement: "center",
-    title: "Import Recipes",
-    description:
-      "Paste a web recipe URL and instantly convert it to a digital card in your collection. Save recipes from anywhere on the internet.",
-    highlightLabel: "Recipe Import",
-    instruction: "Quickly build your recipe library from the web.",
+    id: "Explore Tab",
+    order: 5,
+    title: "Explore",
+    text: "Browse and save community recipes here.",
   },
   {
-    id: "saved-recipes",
-    route: "/",
-    placement: "center",
-    title: "Saved Recipes",
-    description:
-      "Keep a personal collection of your favorite recipes. Bookmark recipes you love and access them anytime from the Recipes tab.",
-    highlightLabel: "Recipe Library",
-    instruction: "Organize and find your recipes quickly.",
+    id: "Profile Tab",
+    order: 6,
+    title: "Profile",
+    text: "Create, import, and manage your recipes.",
   },
   {
-    id: "explore-recipes",
-    route: "/",
-    placement: "center",
-    title: "Explore Recommendations",
-    description:
-      "Discover curated recipes that match your fruit's ripeness level and trending community favorites. Find new dishes to try.",
-    highlightLabel: "Recipe Exploration",
-    instruction: "Get inspiration from personalized recommendations.",
+    id: "Home Tab",
+    order: 7,
+    title: "Home",
+    text: "Come back here anytime to scan more fruit.",
   },
   {
-    id: "settings",
-    route: "/",
-    targetId: "home-settings-button",
-    placement: "top",
-    title: "Customize Your Experience",
-    description:
-      "Adjust text size for readability, enable TEXT-TO-SPEECH narration, manage notifications, and personalize the app to match your preferences.",
-    highlightLabel: "Settings & Preferences",
-    instruction: "Tap Settings anytime to customize.",
+    id: "Sign Out",
+    order: 8,
+    title: "Sign Out",
+    text: "Tap here when you're done to sign out.",
   },
 ];

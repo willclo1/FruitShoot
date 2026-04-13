@@ -13,7 +13,7 @@ import { getMe } from "@/services/me";
 import { tts } from "@/services/tts";
 import { useSettings } from "@/services/settingsContext";
 import { useFontStyle, useTouchTarget } from "@/services/settingsContext";
-import TourTarget from "@/components/tutorial/TourTarget";
+
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let uploadIntroSpokenThisSession = false;
@@ -232,7 +232,7 @@ export default function UploadScreen() {
       </Text>
 
       <View style={styles.buttonRow}>
-        <TourTarget id="upload-library-button" style={{ flex: 1 }}>
+        <View style={{ flex: 1 }}>
           <Pressable
             style={[styles.secondaryBtn, { minHeight: tt.minHeight, paddingVertical: tt.paddingVertical, borderRadius: tt.borderRadius }, (loading || pickerBusy.current) && styles.btnDisabled]}
             onPress={pickImage}
@@ -242,7 +242,7 @@ export default function UploadScreen() {
           >
             <Text style={[styles.secondaryText, { fontFamily: fontBold, fontSize: 15 * finalScale }]}>Library</Text>
           </Pressable>
-        </TourTarget>
+        </View>
 
         <Pressable
           style={[styles.secondaryBtn, { minHeight: tt.minHeight, paddingVertical: tt.paddingVertical, borderRadius: tt.borderRadius }, (loading || pickerBusy.current) && styles.btnDisabled]}

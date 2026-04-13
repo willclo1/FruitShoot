@@ -139,16 +139,18 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.topBar}>
-        <Pressable
-          style={[styles.signOutButton, { minHeight: tt.minHeight, paddingHorizontal: tt.paddingHorizontal }]}
-          onPress={onSignOut}
-          accessibilityRole="button"
-          accessibilityLabel="Sign out"
-        >
-          <Text style={[styles.signOutText, { fontFamily: fontBold, fontSize: 13 * finalScale }]}>
-            Sign Out
-          </Text>
-        </Pressable>
+        <TourTarget id="Sign Out" order={8} text="Tap here when you're done to sign out.">
+          <Pressable
+            style={[styles.signOutButton, { minHeight: tt.minHeight, paddingHorizontal: tt.paddingHorizontal }]}
+            onPress={onSignOut}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
+          >
+            <Text style={[styles.signOutText, { fontFamily: fontBold, fontSize: 13 * finalScale }]}>
+              Sign Out
+            </Text>
+          </Pressable>
+        </TourTarget>
 
         <View style={{ flexDirection: "row", gap: 10 }}>
           {showReplay && (
@@ -163,7 +165,7 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
           )}
-          <TourTarget id="home-settings-button">
+          <TourTarget id="Settings" order={4} text="Adjust voice, text size, and accessibility options.">
             <Pressable
               style={[styles.settingsButton, { minHeight: tt.minHeight, paddingHorizontal: tt.paddingHorizontal }]}
               onPress={() => router.push("/SettingsScreen")}
@@ -179,16 +181,18 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.content}>
-        <Image
-          source={require("../../assets/images/FruitShoot Logo.png")}
-          style={styles.logo}
-          resizeMode="contain"
-          accessibilityIgnoresInvertColors
-          accessibilityLabel="FruitShoot logo"
-        />
+        <TourTarget id="Welcome" order={1} text="This is FruitShoot! Scan fruit, get ripeness results, and discover recipes.">
+          <Image
+            source={require("../../assets/images/FruitShoot Logo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+            accessibilityLabel="FruitShoot logo"
+          />
+        </TourTarget>
 
         <View style={styles.buttonStack}>
-          <TourTarget id="home-upload-button">
+          <TourTarget id="Scan Fruit" order={2} text="Tap here to upload or take a photo of your fruit.">
             <Pressable
               style={({ pressed }) => [
                 styles.button,
@@ -205,20 +209,22 @@ export default function HomeScreen() {
             </Pressable>
           </TourTarget>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              { minHeight: tt.minHeight, paddingVertical: tt.paddingVertical, borderRadius: tt.borderRadius },
-              pressed && styles.buttonPressed,
-            ]}
-            onPress={onPressInstructions}
-            accessibilityRole="button"
-            accessibilityLabel="Instructions"
-          >
-            <Text style={[styles.buttonText, { fontFamily: fontBold, fontSize: 16 * finalScale }]}>
-              Instructions
-            </Text>
-          </Pressable>
+          <TourTarget id="Instructions" order={3} text="Read how scanning works and what results mean.">
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                { minHeight: tt.minHeight, paddingVertical: tt.paddingVertical, borderRadius: tt.borderRadius },
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={onPressInstructions}
+              accessibilityRole="button"
+              accessibilityLabel="Instructions"
+            >
+              <Text style={[styles.buttonText, { fontFamily: fontBold, fontSize: 16 * finalScale }]}>
+                Instructions
+              </Text>
+            </Pressable>
+          </TourTarget>
         </View>
       </View>
     </SafeAreaView>

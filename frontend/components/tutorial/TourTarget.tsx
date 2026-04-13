@@ -1,44 +1,26 @@
-import React, { useEffect, useRef } from "react";
-import { LayoutChangeEvent, View, type ViewStyle, StyleProp } from "react-native";
-import { useTutorial } from "@/services/tutorialContext";
+import React from "react";
+import { View, type ViewStyle, StyleProp } from "react-native";
+import { CopilotStep, walkthroughable } from "react-native-copilot";
+
+const WalkthroughView = walkthroughable(View);
 
 type Props = {
+  /** CopilotStep name — must match a tutorial step id */
   id: string;
+  /** Step order (1-indexed) for copilot sequencing */
+  order: number;
+  /** Tooltip text shown for this step */
+  text: string;
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 };
 
-/**
- * TourTarget registers screen element bounds for walkthrough highlighting.
- * The overlay uses these window-relative coordinates to dim the rest of the UI
- * and visually emphasize the active feature.
- */
-export default function TourTarget({ id, children, style }: Props) {
-  const ref = useRef<View | null>(null);
-  const { registerTarget, unregisterTarget } = useTutorial();
-
-  const measure = () => {
-    requestAnimationFrame(() => {
-      if (!ref.current) return;
-      ref.current.measureInWindow((x, y, width, height) => {
-        if (!width || !height) return;
-        registerTarget(id, { x, y, width, height });
-      });
-    });
-  };
-
-  const onLayout = (_e: LayoutChangeEvent) => {
-    measure();
-  };
-
-  useEffect(() => {
-    measure();
-    return () => unregisterTarget(id);
-  }, [id]);
-
+export default function TourTarget({ id, order, text, children, style }: Props) {
   return (
-    <View ref={ref} onLayout={onLayout} style={style} collapsable={false}>
-      {children}
-    </View>
+    <CopilotStep name={id} order={order} text={text}>
+      <WalkthroughView style={style}>
+        {children}
+      </WalkthroughView>
+    </CopilotStep>
   );
 }

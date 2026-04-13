@@ -5,7 +5,6 @@ import { tts } from "@/services/tts";
 import { useSettings } from "@/services/settingsContext";
 import { useTouchTarget } from "@/services/settingsContext";
 import { useTutorial } from "@/services/tutorialContext";
-import TourTarget from "@/components/tutorial/TourTarget";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -110,18 +109,19 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <Text style={[styles.sectionTitle, { fontSize: 14 * scale, fontFamily: fontBold }]}>Help / Tutorial</Text>
           <Text style={[styles.helper, { fontSize: 12 * scale, fontFamily: fontRegular }]}>Re-open the guided app tutorial at any time.</Text>
-          <TourTarget id="settings-replay-tutorial">
-            <Pressable
+          <Pressable
               style={({ pressed }) => [
                 styles.button,
                 { minHeight: tt.minHeight, paddingVertical: tt.paddingVertical, borderRadius: tt.borderRadius },
                 pressed && styles.buttonPressed,
               ]}
-              onPress={() => startTutorial(0)}
+              onPress={() => {
+                router.replace("/(tabs)");
+                setTimeout(() => startTutorial(), 500);
+              }}
             >
               <Text style={[styles.buttonText, { fontSize: 16 * scale, fontFamily: fontBold }]}>Replay Tutorial</Text>
             </Pressable>
-          </TourTarget>
         </View>
       </ScrollView>
     </SafeAreaView>

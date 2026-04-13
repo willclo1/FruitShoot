@@ -1,35 +1,17 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { getTutorialSeen, setTutorialSeen } from "@/services/tutorialStorage";
-
-export type TutorialTargetRect = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
+import { useCopilot } from "react-native-copilot";
 
 type TutorialContextValue = {
-  visible: boolean;
-  currentStepIndex: number;
-  startTutorial: (fromStepIndex?: number) => void;
-  closeTutorial: () => void;
-  nextStep: (totalSteps: number) => void;
-  prevStep: () => void;
-  setCurrentStepIndex: (index: number) => void;
-  registerTarget: (id: string, rect: TutorialTargetRect) => void;
-  unregisterTarget: (id: string) => void;
-  getTargetRect: (id?: string) => TutorialTargetRect | null;
+  /** Start (or restart) the copilot walkthrough */
+  startTutorial: () => void;
 };
 
 const TutorialContext = createContext<TutorialContextValue | null>(null);
 
 /**
- * TutorialProvider controls first-run tutorial behavior and manual re-launch.
- *
- * First-time logic:
- * - Reads persisted tutorial flag from SecureStore.
- * - Auto-opens only if not seen before and autoStartEnabled is true.
- * - Marks tutorial as seen when auto-open starts so future app launches skip auto mode.
+ * TutorialProvider handles first-run auto-start and exposes startTutorial().
+ * The actual step rendering is handled by CopilotProvider (in _layout.tsx).
  */
 export function TutorialProvider({
   children,
@@ -38,11 +20,9 @@ export function TutorialProvider({
   children: React.ReactNode;
   autoStartEnabled: boolean;
 }) {
-  const [visible, setVisible] = useState(false);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const { start } = useCopilot();
   const [checked, setChecked] = useState(false);
   const [seen, setSeen] = useState(true);
-  const [targets, setTargets] = useState<Record<string, TutorialTargetRect>>({});
 
   useEffect(() => {
     (async () => {
@@ -55,62 +35,25 @@ export function TutorialProvider({
   useEffect(() => {
     if (!checked || seen || !autoStartEnabled) return;
 
-    (async () => {
-      setVisible(true);
+    // Small delay to let CopilotSteps mount before starting
+    const timer = setTimeout(() => {
+      start();
       setSeen(true);
-      await setTutorialSeen(true);
-    })();
-  }, [checked, seen, autoStartEnabled]);
+      setTutorialSeen(true);
+    }, 600);
 
-  const startTutorial = (fromStepIndex = 0) => {
-    setCurrentStepIndex(Math.max(0, fromStepIndex));
-    setVisible(true);
+    return () => clearTimeout(timer);
+  }, [checked, seen, autoStartEnabled, start]);
+
+  const startTutorial = () => {
+    start();
   };
 
-  const closeTutorial = () => {
-    setVisible(false);
-  };
-
-  const nextStep = (totalSteps: number) => {
-    setCurrentStepIndex((prev) => Math.min(prev + 1, Math.max(0, totalSteps - 1)));
-  };
-
-  const prevStep = () => {
-    setCurrentStepIndex((prev) => Math.max(prev - 1, 0));
-  };
-
-  const registerTarget = (id: string, rect: TutorialTargetRect) => {
-    setTargets((prev) => ({ ...prev, [id]: rect }));
-  };
-
-  const unregisterTarget = (id: string) => {
-    setTargets((prev) => {
-      if (!prev[id]) return prev;
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-  };
-
-  const getTargetRect = (id?: string) => {
-    if (!id) return null;
-    return targets[id] ?? null;
-  };
-
-  const value: TutorialContextValue = {
-    visible,
-    currentStepIndex,
-    startTutorial,
-    closeTutorial,
-    nextStep,
-    prevStep,
-    setCurrentStepIndex,
-    registerTarget,
-    unregisterTarget,
-    getTargetRect,
-  };
-
-  return <TutorialContext.Provider value={value}>{children}</TutorialContext.Provider>;
+  return (
+    <TutorialContext.Provider value={{ startTutorial }}>
+      {children}
+    </TutorialContext.Provider>
+  );
 }
 
 export function useTutorial() {

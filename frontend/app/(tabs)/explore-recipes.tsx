@@ -23,7 +23,6 @@ import {
   parseInstructions,
 } from "@/services/recipeFormat";
 import { useFontStyle, useTouchTarget } from "@/services/settingsContext";
-import TourTarget from "@/components/tutorial/TourTarget";
 
 // ─── Palette (matches app: ResultsScreen / HomeScreen) ──────────────────────
 const BRAND        = "#1F4C47";   // app's primary green
@@ -311,7 +310,6 @@ export default function ExploreRecipesScreen() {
   const header = (
     <View style={styles.headerWrap}>
       {/* ── Hero ── */}
-      <TourTarget id="explore-header">
         <View style={styles.hero}>
           <Image
             source={require("../../assets/images/FruitShoot Logo.png")}
@@ -338,7 +336,6 @@ export default function ExploreRecipesScreen() {
           </View>
         )}
         </View>
-      </TourTarget>
 
       {/* ── Feed row ── */}
       <View style={styles.feedRow}>
