@@ -198,7 +198,9 @@ function RootContent() {
         }}
         animated
       >
-        <TutorialProvider autoStartEnabled={!splashMounted && appReady}>
+        <TutorialProvider
+          autoStartEnabled={!splashMounted && appReady && hasToken && segments[0] === "(tabs)"}
+        >
           <Stack screenOptions={{ headerShown: false }} />
           <StatusBar style="auto" />
           <DisclosureModal

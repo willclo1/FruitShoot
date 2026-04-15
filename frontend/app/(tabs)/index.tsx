@@ -12,6 +12,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 
 import { setAuthed } from "@/services/authState";
+import { clearCurrentUserId } from "@/services/tutorialStorage";
 import { tts } from "@/services/tts";
 import { useSettings } from "@/services/settingsContext";
 import { useFontStyle, useTouchTarget } from "@/services/settingsContext";
@@ -112,6 +113,7 @@ export default function HomeScreen() {
         onPress: async () => {
           await SecureStore.deleteItemAsync("access_token");
           await SecureStore.deleteItemAsync("refresh_token");
+          await clearCurrentUserId();
           setAuthed(false);
           router.replace("/login");
         },

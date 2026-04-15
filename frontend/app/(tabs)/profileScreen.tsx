@@ -20,6 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { getMe, type Me } from "@/services/me";
 import { getAllergies, updateAllergies } from "@/services/allergies";
 import { setAuthed } from "@/services/authState";
+import { clearCurrentUserId } from "@/services/tutorialStorage";
 import { tts } from "@/services/tts";
 import {
   useSettings,
@@ -225,6 +226,7 @@ export default function ProfileScreen() {
         onPress: async () => {
           await SecureStore.deleteItemAsync("access_token");
           await SecureStore.deleteItemAsync("refresh_token");
+          await clearCurrentUserId();
           setAuthed(false);
           router.replace("/login");
         },
