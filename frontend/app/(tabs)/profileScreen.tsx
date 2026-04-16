@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
   ActivityIndicator,
 } from "react-native";
@@ -145,8 +144,12 @@ export default function ProfileScreen() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
+  const ALLERGY_OPTIONS = [
+    "Milk", "Eggs", "Fish", "Shellfish", "Tree Nuts",
+    "Peanuts", "Wheat", "Soybeans", "Sesame",
+  ];
+
   const [allergies, setAllergies] = useState("");
-  const [allergyDraft, setAllergyDraft] = useState("");
   const [allergyModalVisible, setAllergyModalVisible] = useState(false);
   const [savingAllergies, setSavingAllergies] = useState(false);
 
@@ -307,17 +310,15 @@ export default function ProfileScreen() {
   const showReplay = loaded && settings.ttsEnabled;
 
   const openAllergyModal = () => {
-    setAllergyDraft("");
     setAllergyModalVisible(true);
   };
 
-  const saveAllergies = async () => {
-    const newItem = allergyDraft.trim();
-    if (!newItem) {
-      setAllergyModalVisible(false);
-      return;
-    }
-    const updated = [...allergyList, newItem].join(", ");
+  const availableOptions = ALLERGY_OPTIONS.filter(
+    (opt) => !allergyList.some((a) => a.toLowerCase() === opt.toLowerCase())
+  );
+
+  const addAllergy = async (item: string) => {
+    const updated = [...allergyList, item].join(", ");
     setSavingAllergies(true);
     try {
       const saved = await updateAllergies(updated);
@@ -644,20 +645,40 @@ export default function ProfileScreen() {
                 Add Allergy
               </Text>
 
-              <TextInput
-                style={[
-                  styles.allergyInput,
-                  { fontFamily: fontRegular, fontSize: 14 * finalScale },
-                ]}
-                value={allergyDraft}
-                onChangeText={setAllergyDraft}
-                placeholder="e.g. peanuts"
-                placeholderTextColor={MUTED}
-                maxLength={100}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={saveAllergies}
-              />
+              {savingAllergies ? (
+                <ActivityIndicator color={CAMERA_GREEN} style={{ marginVertical: 20 }} />
+              ) : availableOptions.length === 0 ? (
+                <Text
+                  style={[
+                    styles.emptyAllergyText,
+                    { fontFamily: fontRegular, fontSize: 14 * finalScale, marginVertical: 12 },
+                  ]}
+                >
+                  All allergens have been added.
+                </Text>
+              ) : (
+                <ScrollView style={styles.dropdownList}>
+                  {availableOptions.map((option) => (
+                    <Pressable
+                      key={option}
+                      onPress={() => addAllergy(option)}
+                      style={({ pressed }) => [
+                        styles.dropdownItem,
+                        pressed && styles.dropdownItemPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownItemText,
+                          { fontFamily: fontRegular, fontSize: 15 * finalScale },
+                        ]}
+                      >
+                        {option}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              )}
 
               <View style={styles.modalButtons}>
                 <Pressable
@@ -675,28 +696,6 @@ export default function ProfileScreen() {
                   >
                     Cancel
                   </Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={saveAllergies}
-                  disabled={savingAllergies}
-                  style={({ pressed }) => [
-                    styles.modalSave,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  {savingAllergies ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.modalSaveText,
-                        { fontFamily: fontBold, fontSize: 14 * finalScale },
-                      ]}
-                    >
-                      Add
-                    </Text>
-                  )}
                 </Pressable>
               </View>
             </View>
@@ -964,13 +963,24 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalTitle: { color: TEXT_DARK, fontWeight: "900", marginBottom: 12 },
-  allergyInput: {
-    borderWidth: 1,
-    borderColor: "rgba(31,76,71,0.15)",
+  dropdownList: {
+    maxHeight: 260,
+    marginBottom: 4,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderRadius: 12,
-    padding: 12,
-    color: TEXT_DARK,
+    marginBottom: 4,
     backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "rgba(31,76,71,0.10)",
+  },
+  dropdownItemPressed: {
+    backgroundColor: "#EDF5ED",
+  },
+  dropdownItemText: {
+    color: TEXT_DARK,
   },
   modalButtons: {
     flexDirection: "row",

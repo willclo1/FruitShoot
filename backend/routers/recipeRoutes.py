@@ -6,6 +6,7 @@ from database.connect import get_db
 from typing import List, Optional
 from models.recipes import Recipe
 from models.saved_recipes import SavedRecipe
+from models.users import User
 from datetime import datetime
 from auth.deps import get_current_user
 
@@ -481,6 +482,74 @@ def score_recipe(
 
 
 # ---------------------------------------------------------------------------
+# ALLERGY FILTER
+# ---------------------------------------------------------------------------
+
+# Map each allergen category to specific ingredient keywords that indicate
+# its presence.  The category name itself is always included.
+ALLERGEN_KEYWORDS: dict[str, list[str]] = {
+    "milk": [
+        "milk", "cream", "butter", "cheese", "yogurt", "yoghurt",
+        "whey", "casein", "ghee", "custard", "ice cream",
+    ],
+    "eggs": [
+        "egg", "eggs", "meringue", "mayonnaise", "mayo",
+    ],
+    "fish": [
+        "fish", "salmon", "tuna", "cod", "tilapia", "trout", "halibut",
+        "sardine", "anchovy", "anchovies", "mackerel", "bass", "haddock",
+        "mahi", "swordfish", "catfish",
+    ],
+    "shellfish": [
+        "shellfish", "shrimp", "prawn", "prawns", "crab", "lobster",
+        "clam", "clams", "mussel", "mussels", "oyster", "oysters",
+        "scallop", "scallops", "crawfish", "crayfish", "calamari", "squid",
+    ],
+    "tree nuts": [
+        "tree nut", "tree nuts", "almond", "almonds", "walnut", "walnuts",
+        "pecan", "pecans", "cashew", "cashews", "pistachio", "pistachios",
+        "macadamia", "hazelnut", "hazelnuts", "brazil nut", "brazil nuts",
+        "chestnut", "chestnuts", "pine nut", "pine nuts", "nuts"
+    ],
+    "peanuts": [
+        "peanut", "peanuts", "peanut butter",
+    ],
+    "wheat": [
+        "wheat", "flour", "bread", "breadcrumb", "breadcrumbs",
+        "pasta", "noodle", "noodles", "couscous", "semolina",
+        "tortilla", "pita", "cracker", "crackers",
+    ],
+    "soybeans": [
+        "soy", "soybean", "soybeans", "soy sauce", "tofu", "tempeh",
+        "edamame", "miso",
+    ],
+    "sesame": [
+        "sesame", "sesame oil", "sesame seed", "sesame seeds", "tahini",
+    ],
+}
+
+
+def _get_user_allergens(db: Session, user_id: int) -> list[str]:
+    """Return expanded lowercased allergen keywords for the current user."""
+    user = db.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
+    if not user or not user.allergies:
+        return []
+    categories = [a.strip().lower() for a in user.allergies.split(",") if a.strip()]
+    keywords: list[str] = []
+    for cat in categories:
+        keywords.extend(ALLERGEN_KEYWORDS.get(cat, [cat]))
+    return keywords
+
+
+def _recipe_contains_allergen(recipe: Recipe, allergens: list[str]) -> bool:
+    """Check if a recipe's ingredients or title contain any of the user's allergens."""
+    if not allergens:
+        return False
+    text = (recipe.ingredients_description + " " + recipe.title).lower()
+    return any(allergen in text for allergen in allergens)
+
+
+# ---------------------------------------------------------------------------
 # ROUTES
 # ---------------------------------------------------------------------------
 
@@ -508,6 +577,8 @@ def suggest_recipes(
     db: Session = Depends(get_db),
     current_user: int = Depends(get_current_user),
 ):
+    allergens = _get_user_allergens(db, current_user)
+
     recipes = db.execute(
         select(Recipe)
         .order_by(Recipe.created_at.desc())
@@ -515,6 +586,8 @@ def suggest_recipes(
 
     scored = []
     for r in recipes:
+        if _recipe_contains_allergen(r, allergens):
+            continue
         score, reason = score_recipe(
             recipe=r,
             fruit=payload.fruit,
@@ -552,16 +625,21 @@ def explore_recipes(
     db: Session = Depends(get_db),
     current_user: int = Depends(get_current_user),
 ):
-    recipes = db.execute(
+    allergens = _get_user_allergens(db, current_user)
+
+    # Fetch all other users' recipes and filter allergens in Python so that
+    # LIMIT/OFFSET operate on the *filtered* set (not the raw SQL result).
+    all_recipes = db.execute(
         select(Recipe)
         .where(Recipe.user_id != current_user)
         .order_by(Recipe.created_at.desc())
-        .limit(limit)
-        .offset(offset)
     ).scalars().all()
 
+    filtered = [r for r in all_recipes if not _recipe_contains_allergen(r, allergens)]
+    page = filtered[offset : offset + limit]
+
     results = []
-    for recipe in recipes:
+    for recipe in page:
         is_saved = db.execute(
             select(SavedRecipe).where(
                 SavedRecipe.user_id == current_user,
