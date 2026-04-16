@@ -236,47 +236,77 @@ export default function ExploreRecipesScreen() {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
+  const [ingredientsFilter, setIngredientsFilter] = useState<string[]>([]);
+
   const savedCount = useMemo(() => recipes.filter((r) => r.is_saved).length, [recipes]);
 
-  const loadRecipes = React.useCallback(async (isRefresh = false) => {
-    try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
-      const data = await getExploreRecipes(PAGE_SIZE, 0);
-      setRecipes(data);
-      setOffset(data.length);
-      setHasMore(data.length === PAGE_SIZE);
-    } catch (e: any) {
-      Alert.alert("Explore", e?.message || "Could not load explore recipes");
-    } finally {
-      if (isRefresh) setRefreshing(false);
-      else setLoading(false);
-    }
-  }, []);
+  const loadRecipes = React.useCallback(
+    async (isRefresh = false) => {
+      try {
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
 
-  const loadMoreRecipes = React.useCallback(async () => {
-    if (loading || refreshing || loadingMore || !hasMore) return;
-    try {
-      setLoadingMore(true);
-      const data = await getExploreRecipes(PAGE_SIZE, offset);
-      if (data.length === 0) { setHasMore(false); return; }
-      setRecipes((prev) => {
-        const existingIds = new Set(prev.map((r) => r.id));
-        const uniqueNew = data.filter((r) => !existingIds.has(r.id));
-        return [...prev, ...uniqueNew];
-      });
-      setOffset((prev) => prev + data.length);
-      setHasMore(data.length === PAGE_SIZE);
-    } catch (e: any) {
-      Alert.alert("Explore", e?.message || "Could not load more recipes");
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [loading, refreshing, loadingMore, hasMore, offset]);
+        setOffset(0);
+        setHasMore(true);
 
-  useFocusEffect(
-    React.useCallback(() => { loadRecipes(); }, [loadRecipes])
+        const data = await getExploreRecipes(
+          PAGE_SIZE,
+          0,
+          ingredientsFilter
+        );
+
+        setRecipes(data);
+        setOffset(data.length);
+        setHasMore(data.length === PAGE_SIZE);
+      } catch (e: any) {
+        Alert.alert("Explore", e?.message || "Could not load explore recipes");
+      } finally {
+        if (isRefresh) setRefreshing(false);
+        else setLoading(false);
+      }
+    },
+    [ingredientsFilter] // ✅ REQUIRED
   );
+
+
+  const loadMoreRecipes = React.useCallback(
+    async () => {
+      if (loading || refreshing || loadingMore || !hasMore) return;
+
+      try {
+        setLoadingMore(true);
+
+        const data = await getExploreRecipes(
+          PAGE_SIZE,
+          offset,
+          ingredientsFilter
+        );
+
+        if (data.length === 0) {
+          setHasMore(false);
+          return;
+        }
+
+        setRecipes((prev) => {
+          const existingIds = new Set(prev.map((r) => r.id));
+          const uniqueNew = data.filter((r) => !existingIds.has(r.id));
+          return [...prev, ...uniqueNew];
+        });
+
+        setOffset((prev) => prev + data.length);
+        setHasMore(data.length === PAGE_SIZE);
+      } catch (e: any) {
+        Alert.alert("Explore", e?.message || "Could not load more recipes");
+      } finally {
+        setLoadingMore(false);
+      }
+    },
+    [loading, refreshing, loadingMore, hasMore, offset, ingredientsFilter]
+  );
+
+  React.useEffect(() => {
+    loadRecipes();
+  }, [loadRecipes]);
 
   const toggleSave = async (recipe: ExploreRecipe) => {
     try {
@@ -335,6 +365,67 @@ export default function ExploreRecipesScreen() {
             </Text>
           </View>
         )}
+        </View>
+
+        {/* ── Ingredient Filter ── */}
+        <View style={styles.filterWrap}>
+          <Text
+            style={[
+              styles.filterLabel,
+              { fontFamily: fontBold, fontSize: 12 * finalScale },
+            ]}
+          >
+            Filter by ingredients
+          </Text>
+
+          <View style={styles.filterRow}>
+            {ingredientsFilter.map((ing) => (
+              <Pressable
+                key={ing}
+                onPress={() =>
+                  setIngredientsFilter((prev) =>
+                    prev.filter((i) => i !== ing)
+                  )
+                }
+                style={styles.filterPill}
+              >
+                <Text
+                  style={[
+                    styles.filterPillText,
+                    { fontFamily: fontBold, fontSize: 12 * finalScale },
+                  ]}
+                >
+                  {ing} ×
+                </Text>
+              </Pressable>
+            ))}
+
+            <Pressable
+              onPress={() => {
+                Alert.prompt(
+                  "Add ingredient",
+                  "Type an ingredient to filter by",
+                  (value) => {
+                    if (!value) return;
+                    const normalized = value.trim().toLowerCase();
+                    setIngredientsFilter((prev) =>
+                      prev.includes(normalized) ? prev : [...prev, normalized]
+                    );
+                  }
+                );
+              }}
+              style={styles.addFilterPill}
+            >
+              <Text
+                style={[
+                  styles.addFilterText,
+                  { fontFamily: fontBold, fontSize: 12 * finalScale },
+                ]}
+              >
+                + Add
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
       {/* ── Feed row ── */}
@@ -510,6 +601,43 @@ const styles = StyleSheet.create({
   refreshBtnText: {
     color: BRAND,
     fontWeight: "900",
+  },
+    filterWrap: {
+    marginTop: 18,
+    marginBottom: 8,
+  },
+
+  filterLabel: {
+    color: TEXT_MUTED,
+    marginBottom: 6,
+  },
+
+  filterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  filterPill: {
+    backgroundColor: PILL_BG,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+
+  filterPillText: {
+    color: BRAND,
+  },
+
+  addFilterPill: {
+    backgroundColor: BRAND,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+
+  addFilterText: {
+    color: "#fff",
   },
 
   // ── Card ────────────────────────────────────────────────

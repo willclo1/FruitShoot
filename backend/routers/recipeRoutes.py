@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 from pydantic import BaseModel, Field
 from database.connect import get_db
 from typing import List, Optional
@@ -549,16 +549,29 @@ def suggest_recipes(
 def explore_recipes(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    ingredients: Optional[List[str]] = Query(default=None),
     db: Session = Depends(get_db),
     current_user: int = Depends(get_current_user),
 ):
-    recipes = db.execute(
+    query = (
         select(Recipe)
         .where(Recipe.user_id != current_user)
+    )
+
+    if ingredients:
+        for ingredient in ingredients:
+            query = query.where(
+                Recipe.ingredients_description.ilike(f"%{ingredient}%")
+            )
+
+    query = (
+        query
         .order_by(Recipe.created_at.desc())
         .limit(limit)
         .offset(offset)
-    ).scalars().all()
+    )
+
+    recipes = db.execute(query).scalars().all()
 
     results = []
     for recipe in recipes:
@@ -570,7 +583,8 @@ def explore_recipes(
         ).scalar_one_or_none() is not None
 
         save_count = db.execute(
-            select(func.count(SavedRecipe.id)).where(SavedRecipe.recipe_id == recipe.id)
+            select(func.count(SavedRecipe.id))
+            .where(SavedRecipe.recipe_id == recipe.id)
         ).scalar_one()
 
         results.append(
