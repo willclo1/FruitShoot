@@ -628,7 +628,7 @@ def explore_recipes(
     current_user: int = Depends(get_current_user),
 ):
     allergens = _get_user_allergens(db, current_user)
-    query = db.execute(
+    query = (
         select(Recipe)
         .where(Recipe.user_id != current_user)
     )
@@ -650,7 +650,7 @@ def explore_recipes(
         .order_by(Recipe.created_at.desc())
         .limit(limit)
         .offset(offset)
-    ).scalars().all()
+    )
 
     recipes = db.execute(query).scalars().all()
     filtered = [r for r in recipes if not _recipe_contains_allergen(r, allergens)]
