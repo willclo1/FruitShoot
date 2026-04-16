@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -238,6 +239,7 @@ export default function ExploreRecipesScreen() {
 
   const [ingredientsFilter, setIngredientsFilter] = useState<string[]>([]);
   const [excludeIngredientsFilter, setExcludeIngredientsFilter] = useState<string[]>([]);
+  const [ingredientInput, setIngredientInput] = useState("");
 
   const savedCount = useMemo(() => recipes.filter((r) => r.is_saved).length, [recipes]);
 
@@ -370,7 +372,7 @@ export default function ExploreRecipesScreen() {
         )}
         </View>
 
-        {/* ── Ingredient Filter ── */}
+        {/* ── Ingredient Filter (Include / Exclude) ── */}
         <View style={styles.filterWrap}>
           <Text
             style={[
@@ -378,124 +380,124 @@ export default function ExploreRecipesScreen() {
               { fontFamily: fontBold, fontSize: 12 * finalScale },
             ]}
           >
-            Filter by ingredients
+            Filter ingredients
           </Text>
 
-          <View style={styles.filterRow}>
-            {ingredientsFilter.map((ing) => (
-              <Pressable
-                key={ing}
-                onPress={() =>
-                  setIngredientsFilter((prev) =>
-                    prev.filter((i) => i !== ing)
-                  )
-                }
-                style={styles.filterPill}
-              >
-                <Text
-                  style={[
-                    styles.filterPillText,
-                    { fontFamily: fontBold, fontSize: 12 * finalScale },
-                  ]}
-                >
-                  {ing} ×
-                </Text>
-              </Pressable>
-            ))}
+          <View style={styles.filterInputRow}>
+            <View style={styles.filterInputWrap}>
+              <TextInput
+                value={ingredientInput}
+                onChangeText={setIngredientInput}
+                placeholder="e.g. garlic, peanuts…"
+                placeholderTextColor={TEXT_MUTED}
+                style={[
+                  styles.filterInput,
+                  { fontFamily: fontRegular, fontSize: 13 * finalScale },
+                ]}
+              />
+            </View>
 
+            {/* Include button */}
             <Pressable
               onPress={() => {
-                Alert.prompt(
-                  "Add ingredient",
-                  "Type an ingredient to filter by",
-                  (value) => {
-                    if (!value) return;
-                    const normalized = value.trim().toLowerCase();
-                    setIngredientsFilter((prev) =>
-                      prev.includes(normalized) ? prev : [...prev, normalized]
-                    );
-                  }
+                const val = ingredientInput.trim().toLowerCase();
+                if (!val) return;
+                setIngredientsFilter((prev) =>
+                  prev.includes(val) ? prev : [...prev, val]
                 );
+                setIngredientInput("");
               }}
-              style={styles.addFilterPill}
-            >
-              <Text
-                style={[
-                  styles.addFilterText,
-                  { fontFamily: fontBold, fontSize: 12 * finalScale },
-                ]}
-              >
-                + Add
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {/* ── Exclude Ingredient Filter ── */}
-        <View style={styles.filterWrap}>
-          <Text
-            style={[
-              styles.filterLabel,
-              { fontFamily: fontBold, fontSize: 12 * finalScale },
-            ]}
-          >
-            Exclude ingredients
-          </Text>
-
-          <View style={styles.filterRow}>
-            {excludeIngredientsFilter.map((ing) => (
-              <Pressable
-                key={ing}
-                onPress={() =>
-                  setExcludeIngredientsFilter((prev) =>
-                    prev.filter((i) => i !== ing)
-                  )
-                }
-                style={[
-                  styles.filterPill,
-                  { borderColor: "#9A3B3B", borderWidth: 1 },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.filterPillText,
-                    { color: "#9A3B3B", fontFamily: fontBold, fontSize: 12 * finalScale },
-                  ]}
-                >
-                  {ing} ×
-                </Text>
-              </Pressable>
-            ))}
-
-            <Pressable
-              onPress={() => {
-                Alert.prompt(
-                  "Exclude ingredient",
-                  "Type an ingredient to avoid",
-                  (value) => {
-                    if (!value) return;
-                    const normalized = value.trim().toLowerCase();
-                    setExcludeIngredientsFilter((prev) =>
-                      prev.includes(normalized) ? prev : [...prev, normalized]
-                    );
-                  }
-                );
-              }}
-              style={[
-                styles.addFilterPill,
-                { backgroundColor: "#9A3B3B" },
+              style={({ pressed }) => [
+                styles.filterActionBtn,
+                pressed && styles.pressed,
               ]}
             >
               <Text
                 style={[
-                  styles.addFilterText,
+                  styles.filterActionText,
                   { fontFamily: fontBold, fontSize: 12 * finalScale },
                 ]}
               >
-                + Exclude
+                Include
+              </Text>
+            </Pressable>
+
+            {/* Exclude button */}
+            <Pressable
+              onPress={() => {
+                const val = ingredientInput.trim().toLowerCase();
+                if (!val) return;
+                setExcludeIngredientsFilter((prev) =>
+                  prev.includes(val) ? prev : [...prev, val]
+                );
+                setIngredientInput("");
+              }}
+              style={({ pressed }) => [
+                styles.filterActionBtn,
+                styles.excludeBtn,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.filterActionText,
+                  styles.excludeText,
+                  { fontFamily: fontBold, fontSize: 12 * finalScale },
+                ]}
+              >
+                Exclude
               </Text>
             </Pressable>
           </View>
+
+          {/* Active include chips */}
+          {ingredientsFilter.length > 0 && (
+            <View style={styles.filterRow}>
+              {ingredientsFilter.map((ing) => (
+                <Pressable
+                  key={`inc-${ing}`}
+                  onPress={() =>
+                    setIngredientsFilter((prev) => prev.filter((i) => i !== ing))
+                  }
+                  style={styles.filterPill}
+                >
+                  <Text
+                    style={[
+                      styles.filterPillText,
+                      { fontFamily: fontBold, fontSize: 12 * finalScale },
+                    ]}
+                  >
+                    {ing} ×
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {/* Active exclude chips */}
+          {excludeIngredientsFilter.length > 0 && (
+            <View style={styles.filterRow}>
+              {excludeIngredientsFilter.map((ing) => (
+                <Pressable
+                  key={`exc-${ing}`}
+                  onPress={() =>
+                    setExcludeIngredientsFilter((prev) => prev.filter((i) => i !== ing))
+                  }
+                  style={[styles.filterPill, styles.excludePill]}
+                >
+                  <Text
+                    style={[
+                      styles.filterPillText,
+                      styles.excludeText,
+                      { fontFamily: fontBold, fontSize: 12 * finalScale },
+                    ]}
+                  >
+                    {ing} ×
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
 
       {/* ── Feed row ── */}
@@ -709,6 +711,52 @@ const styles = StyleSheet.create({
   addFilterText: {
     color: "#fff",
   },
+  filterInputRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 8,
+},
+
+filterInputWrap: {
+  flex: 1,
+},
+
+filterInput: {
+  backgroundColor: "#FFFFFF",
+  borderRadius: 12,
+  paddingHorizontal: 14,
+  paddingVertical: 10,
+  borderWidth: 1,
+  borderColor: BORDER_SOFT,
+  color: TEXT_DARK,
+},
+
+filterActionBtn: {
+  backgroundColor: PILL_BG,
+  borderRadius: 12,
+  paddingHorizontal: 14,
+  paddingVertical: 10,
+  borderWidth: 1,
+  borderColor: BORDER_SAVED,
+},
+
+filterActionText: {
+  color: BRAND,
+  fontWeight: "900",
+},
+
+excludeBtn: {
+  borderColor: "#9A3B3B",
+},
+
+excludeText: {
+  color: "#9A3B3B",
+},
+
+excludePill: {
+  backgroundColor: "rgba(154,59,59,0.08)",
+  borderColor: "rgba(154,59,59,0.35)",
+},
 
   // ── Card ────────────────────────────────────────────────
   card: {
