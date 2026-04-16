@@ -550,6 +550,7 @@ def explore_recipes(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     ingredients: Optional[List[str]] = Query(default=None),
+    exclude_ingredients: Optional[List[str]] = Query(default=None),
     db: Session = Depends(get_db),
     current_user: int = Depends(get_current_user),
 ):
@@ -562,6 +563,12 @@ def explore_recipes(
         for ingredient in ingredients:
             query = query.where(
                 Recipe.ingredients_description.ilike(f"%{ingredient}%")
+            )
+
+    if exclude_ingredients:
+        for excluded in exclude_ingredients:
+            query = query.where(
+                ~Recipe.ingredients_description.ilike(f"%{excluded}%")
             )
 
     query = (

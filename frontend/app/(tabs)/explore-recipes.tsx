@@ -237,6 +237,7 @@ export default function ExploreRecipesScreen() {
   const [hasMore, setHasMore] = useState(true);
 
   const [ingredientsFilter, setIngredientsFilter] = useState<string[]>([]);
+  const [excludeIngredientsFilter, setExcludeIngredientsFilter] = useState<string[]>([]);
 
   const savedCount = useMemo(() => recipes.filter((r) => r.is_saved).length, [recipes]);
 
@@ -252,7 +253,8 @@ export default function ExploreRecipesScreen() {
         const data = await getExploreRecipes(
           PAGE_SIZE,
           0,
-          ingredientsFilter
+          ingredientsFilter,
+          excludeIngredientsFilter
         );
 
         setRecipes(data);
@@ -265,7 +267,7 @@ export default function ExploreRecipesScreen() {
         else setLoading(false);
       }
     },
-    [ingredientsFilter] // ✅ REQUIRED
+    [ingredientsFilter, excludeIngredientsFilter]
   );
 
 
@@ -279,7 +281,8 @@ export default function ExploreRecipesScreen() {
         const data = await getExploreRecipes(
           PAGE_SIZE,
           offset,
-          ingredientsFilter
+          ingredientsFilter,
+          excludeIngredientsFilter
         );
 
         if (data.length === 0) {
@@ -301,7 +304,7 @@ export default function ExploreRecipesScreen() {
         setLoadingMore(false);
       }
     },
-    [loading, refreshing, loadingMore, hasMore, offset, ingredientsFilter]
+    [loading, refreshing, loadingMore, hasMore, offset, ingredientsFilter, excludeIngredientsFilter]
   );
 
   React.useEffect(() => {
@@ -423,6 +426,73 @@ export default function ExploreRecipesScreen() {
                 ]}
               >
                 + Add
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* ── Exclude Ingredient Filter ── */}
+        <View style={styles.filterWrap}>
+          <Text
+            style={[
+              styles.filterLabel,
+              { fontFamily: fontBold, fontSize: 12 * finalScale },
+            ]}
+          >
+            Exclude ingredients
+          </Text>
+
+          <View style={styles.filterRow}>
+            {excludeIngredientsFilter.map((ing) => (
+              <Pressable
+                key={ing}
+                onPress={() =>
+                  setExcludeIngredientsFilter((prev) =>
+                    prev.filter((i) => i !== ing)
+                  )
+                }
+                style={[
+                  styles.filterPill,
+                  { borderColor: "#9A3B3B", borderWidth: 1 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterPillText,
+                    { color: "#9A3B3B", fontFamily: fontBold, fontSize: 12 * finalScale },
+                  ]}
+                >
+                  {ing} ×
+                </Text>
+              </Pressable>
+            ))}
+
+            <Pressable
+              onPress={() => {
+                Alert.prompt(
+                  "Exclude ingredient",
+                  "Type an ingredient to avoid",
+                  (value) => {
+                    if (!value) return;
+                    const normalized = value.trim().toLowerCase();
+                    setExcludeIngredientsFilter((prev) =>
+                      prev.includes(normalized) ? prev : [...prev, normalized]
+                    );
+                  }
+                );
+              }}
+              style={[
+                styles.addFilterPill,
+                { backgroundColor: "#9A3B3B" },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.addFilterText,
+                  { fontFamily: fontBold, fontSize: 12 * finalScale },
+                ]}
+              >
+                + Exclude
               </Text>
             </Pressable>
           </View>

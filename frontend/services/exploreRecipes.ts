@@ -14,7 +14,8 @@ export type ExploreRecipe = {
 export async function getExploreRecipes(
   limit = 20,
   offset = 0,
-  ingredients?: string[]
+  ingredients?: string[],
+  excludeIngredients?: string[]
 ): Promise<ExploreRecipe[]> {
   const params = new URLSearchParams();
 
@@ -27,7 +28,11 @@ export async function getExploreRecipes(
     });
   }
 
-  console.log("Ingredients: ", ingredients);
+  if (excludeIngredients && excludeIngredients.length > 0) {
+    excludeIngredients.forEach((ingredient) => {
+      params.append("exclude_ingredients", ingredient);
+    });
+  }
 
   const res = await apiFetch(`/recipes/explore?${params.toString()}`, {
     method: "GET",
@@ -41,6 +46,7 @@ export async function getExploreRecipes(
 
   return data;
 }
+``
 
 export async function getSavedRecipes(): Promise<ExploreRecipe[]> {
   const res = await apiFetch("/recipes/saved", {
