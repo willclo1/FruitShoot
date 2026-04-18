@@ -11,8 +11,30 @@ export type ExploreRecipe = {
   save_count: number;
 };
 
-export async function getExploreRecipes(limit = 20, offset = 0): Promise<ExploreRecipe[]> {
-  const res = await apiFetch(`/recipes/explore?limit=${limit}&offset=${offset}`, {
+export async function getExploreRecipes(
+  limit = 20,
+  offset = 0,
+  ingredients?: string[],
+  excludeIngredients?: string[]
+): Promise<ExploreRecipe[]> {
+  const params = new URLSearchParams();
+
+  params.set("limit", limit.toString());
+  params.set("offset", offset.toString());
+
+  if (ingredients && ingredients.length > 0) {
+    ingredients.forEach((ingredient) => {
+      params.append("ingredients", ingredient);
+    });
+  }
+
+  if (excludeIngredients && excludeIngredients.length > 0) {
+    excludeIngredients.forEach((ingredient) => {
+      params.append("exclude_ingredients", ingredient);
+    });
+  }
+
+  const res = await apiFetch(`/recipes/explore?${params.toString()}`, {
     method: "GET",
   });
 
@@ -24,6 +46,7 @@ export async function getExploreRecipes(limit = 20, offset = 0): Promise<Explore
 
   return data;
 }
+``
 
 export async function getSavedRecipes(): Promise<ExploreRecipe[]> {
   const res = await apiFetch("/recipes/saved", {

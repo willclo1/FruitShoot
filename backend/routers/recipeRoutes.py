@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 from pydantic import BaseModel, Field
 from database.connect import get_db
 from typing import List, Optional
@@ -622,20 +622,38 @@ def suggest_recipes(
 def explore_recipes(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    ingredients: Optional[List[str]] = Query(default=None),
+    exclude_ingredients: Optional[List[str]] = Query(default=None),
     db: Session = Depends(get_db),
     current_user: int = Depends(get_current_user),
 ):
     allergens = _get_user_allergens(db, current_user)
-
-    # Fetch all other users' recipes and filter allergens in Python so that
-    # LIMIT/OFFSET operate on the *filtered* set (not the raw SQL result).
-    all_recipes = db.execute(
+    query = (
         select(Recipe)
         .where(Recipe.user_id != current_user)
-        .order_by(Recipe.created_at.desc())
-    ).scalars().all()
+    )
 
-    filtered = [r for r in all_recipes if not _recipe_contains_allergen(r, allergens)]
+    if ingredients:
+        for ingredient in ingredients:
+            query = query.where(
+                Recipe.ingredients_description.ilike(f"%{ingredient}%")
+            )
+
+    if exclude_ingredients:
+        for excluded in exclude_ingredients:
+            query = query.where(
+                ~Recipe.ingredients_description.ilike(f"%{excluded}%")
+            )
+
+    query = (
+        query
+        .order_by(Recipe.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    recipes = db.execute(query).scalars().all()
+    filtered = [r for r in recipes if not _recipe_contains_allergen(r, allergens)]
     page = filtered[offset : offset + limit]
 
     results = []
@@ -648,7 +666,8 @@ def explore_recipes(
         ).scalar_one_or_none() is not None
 
         save_count = db.execute(
-            select(func.count(SavedRecipe.id)).where(SavedRecipe.recipe_id == recipe.id)
+            select(func.count(SavedRecipe.id))
+            .where(SavedRecipe.recipe_id == recipe.id)
         ).scalar_one()
 
         results.append(

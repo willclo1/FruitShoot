@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -236,47 +237,81 @@ export default function ExploreRecipesScreen() {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
+  const [ingredientsFilter, setIngredientsFilter] = useState<string[]>([]);
+  const [excludeIngredientsFilter, setExcludeIngredientsFilter] = useState<string[]>([]);
+  const [ingredientInput, setIngredientInput] = useState("");
+
   const savedCount = useMemo(() => recipes.filter((r) => r.is_saved).length, [recipes]);
 
-  const loadRecipes = React.useCallback(async (isRefresh = false) => {
-    try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
-      const data = await getExploreRecipes(PAGE_SIZE, 0);
-      setRecipes(data);
-      setOffset(data.length);
-      setHasMore(data.length === PAGE_SIZE);
-    } catch (e: any) {
-      Alert.alert("Explore", e?.message || "Could not load explore recipes");
-    } finally {
-      if (isRefresh) setRefreshing(false);
-      else setLoading(false);
-    }
-  }, []);
+  const loadRecipes = React.useCallback(
+    async (isRefresh = false) => {
+      try {
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
 
-  const loadMoreRecipes = React.useCallback(async () => {
-    if (loading || refreshing || loadingMore || !hasMore) return;
-    try {
-      setLoadingMore(true);
-      const data = await getExploreRecipes(PAGE_SIZE, offset);
-      if (data.length === 0) { setHasMore(false); return; }
-      setRecipes((prev) => {
-        const existingIds = new Set(prev.map((r) => r.id));
-        const uniqueNew = data.filter((r) => !existingIds.has(r.id));
-        return [...prev, ...uniqueNew];
-      });
-      setOffset((prev) => prev + data.length);
-      setHasMore(data.length === PAGE_SIZE);
-    } catch (e: any) {
-      Alert.alert("Explore", e?.message || "Could not load more recipes");
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [loading, refreshing, loadingMore, hasMore, offset]);
+        setOffset(0);
+        setHasMore(true);
 
-  useFocusEffect(
-    React.useCallback(() => { loadRecipes(); }, [loadRecipes])
+        const data = await getExploreRecipes(
+          PAGE_SIZE,
+          0,
+          ingredientsFilter,
+          excludeIngredientsFilter
+        );
+
+        setRecipes(data);
+        setOffset(data.length);
+        setHasMore(data.length === PAGE_SIZE);
+      } catch (e: any) {
+        Alert.alert("Explore", e?.message || "Could not load explore recipes");
+      } finally {
+        if (isRefresh) setRefreshing(false);
+        else setLoading(false);
+      }
+    },
+    [ingredientsFilter, excludeIngredientsFilter]
   );
+
+
+  const loadMoreRecipes = React.useCallback(
+    async () => {
+      if (loading || refreshing || loadingMore || !hasMore) return;
+
+      try {
+        setLoadingMore(true);
+
+        const data = await getExploreRecipes(
+          PAGE_SIZE,
+          offset,
+          ingredientsFilter,
+          excludeIngredientsFilter
+        );
+
+        if (data.length === 0) {
+          setHasMore(false);
+          return;
+        }
+
+        setRecipes((prev) => {
+          const existingIds = new Set(prev.map((r) => r.id));
+          const uniqueNew = data.filter((r) => !existingIds.has(r.id));
+          return [...prev, ...uniqueNew];
+        });
+
+        setOffset((prev) => prev + data.length);
+        setHasMore(data.length === PAGE_SIZE);
+      } catch (e: any) {
+        Alert.alert("Explore", e?.message || "Could not load more recipes");
+      } finally {
+        setLoadingMore(false);
+      }
+    },
+    [loading, refreshing, loadingMore, hasMore, offset, ingredientsFilter, excludeIngredientsFilter]
+  );
+
+  React.useEffect(() => {
+    loadRecipes();
+  }, [loadRecipes]);
 
   const toggleSave = async (recipe: ExploreRecipe) => {
     try {
@@ -335,6 +370,134 @@ export default function ExploreRecipesScreen() {
             </Text>
           </View>
         )}
+        </View>
+
+        {/* ── Ingredient Filter (Include / Exclude) ── */}
+        <View style={styles.filterWrap}>
+          <Text
+            style={[
+              styles.filterLabel,
+              { fontFamily: fontBold, fontSize: 12 * finalScale },
+            ]}
+          >
+            Filter ingredients
+          </Text>
+
+          <View style={styles.filterInputRow}>
+            <View style={styles.filterInputWrap}>
+              <TextInput
+                value={ingredientInput}
+                onChangeText={setIngredientInput}
+                placeholder="e.g. garlic, peanuts…"
+                placeholderTextColor={TEXT_MUTED}
+                style={[
+                  styles.filterInput,
+                  { fontFamily: fontRegular, fontSize: 13 * finalScale },
+                ]}
+              />
+            </View>
+
+            {/* Include button */}
+            <Pressable
+              onPress={() => {
+                const val = ingredientInput.trim().toLowerCase();
+                if (!val) return;
+                setIngredientsFilter((prev) =>
+                  prev.includes(val) ? prev : [...prev, val]
+                );
+                setIngredientInput("");
+              }}
+              style={({ pressed }) => [
+                styles.filterActionBtn,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.filterActionText,
+                  { fontFamily: fontBold, fontSize: 12 * finalScale },
+                ]}
+              >
+                Include
+              </Text>
+            </Pressable>
+
+            {/* Exclude button */}
+            <Pressable
+              onPress={() => {
+                const val = ingredientInput.trim().toLowerCase();
+                if (!val) return;
+                setExcludeIngredientsFilter((prev) =>
+                  prev.includes(val) ? prev : [...prev, val]
+                );
+                setIngredientInput("");
+              }}
+              style={({ pressed }) => [
+                styles.filterActionBtn,
+                styles.excludeBtn,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.filterActionText,
+                  styles.excludeText,
+                  { fontFamily: fontBold, fontSize: 12 * finalScale },
+                ]}
+              >
+                Exclude
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Active include chips */}
+          {ingredientsFilter.length > 0 && (
+            <View style={styles.filterRow}>
+              {ingredientsFilter.map((ing) => (
+                <Pressable
+                  key={`inc-${ing}`}
+                  onPress={() =>
+                    setIngredientsFilter((prev) => prev.filter((i) => i !== ing))
+                  }
+                  style={styles.filterPill}
+                >
+                  <Text
+                    style={[
+                      styles.filterPillText,
+                      { fontFamily: fontBold, fontSize: 12 * finalScale },
+                    ]}
+                  >
+                    {ing} ×
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {/* Active exclude chips */}
+          {excludeIngredientsFilter.length > 0 && (
+            <View style={styles.filterRow}>
+              {excludeIngredientsFilter.map((ing) => (
+                <Pressable
+                  key={`exc-${ing}`}
+                  onPress={() =>
+                    setExcludeIngredientsFilter((prev) => prev.filter((i) => i !== ing))
+                  }
+                  style={[styles.filterPill, styles.excludePill]}
+                >
+                  <Text
+                    style={[
+                      styles.filterPillText,
+                      styles.excludeText,
+                      { fontFamily: fontBold, fontSize: 12 * finalScale },
+                    ]}
+                  >
+                    {ing} ×
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
 
       {/* ── Feed row ── */}
@@ -511,6 +674,89 @@ const styles = StyleSheet.create({
     color: BRAND,
     fontWeight: "900",
   },
+    filterWrap: {
+    marginTop: 18,
+    marginBottom: 8,
+  },
+
+  filterLabel: {
+    color: TEXT_MUTED,
+    marginBottom: 6,
+  },
+
+  filterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  filterPill: {
+    backgroundColor: PILL_BG,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+
+  filterPillText: {
+    color: BRAND,
+  },
+
+  addFilterPill: {
+    backgroundColor: BRAND,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+
+  addFilterText: {
+    color: "#fff",
+  },
+  filterInputRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 8,
+},
+
+filterInputWrap: {
+  flex: 1,
+},
+
+filterInput: {
+  backgroundColor: "#FFFFFF",
+  borderRadius: 12,
+  paddingHorizontal: 14,
+  paddingVertical: 10,
+  borderWidth: 1,
+  borderColor: BORDER_SOFT,
+  color: TEXT_DARK,
+},
+
+filterActionBtn: {
+  backgroundColor: PILL_BG,
+  borderRadius: 12,
+  paddingHorizontal: 14,
+  paddingVertical: 10,
+  borderWidth: 1,
+  borderColor: BORDER_SAVED,
+},
+
+filterActionText: {
+  color: BRAND,
+  fontWeight: "900",
+},
+
+excludeBtn: {
+  borderColor: "#9A3B3B",
+},
+
+excludeText: {
+  color: "#9A3B3B",
+},
+
+excludePill: {
+  backgroundColor: "rgba(154,59,59,0.08)",
+  borderColor: "rgba(154,59,59,0.35)",
+},
 
   // ── Card ────────────────────────────────────────────────
   card: {
