@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import torch
 
-from .multitask_resnet import ConditionalFruitModel
+from .multitask_resnet import DualStreamFruitModel as ConditionalFruitModel
 
 # Index → label mappings (must stay consistent across all files)
 FRUIT_LABELS = ["Apple", "Banana", "Strawberry", "Non-Fruit"]   # 0,1,2,3

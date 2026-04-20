@@ -6,7 +6,7 @@ import urllib.error
 # Update EXPECTED_SIZE to match the actual size of your ResNet50-based model weights file.
 # ResNet50 checkpoints are typically larger than ResNet18 (~100 MB+ depending on heads).
 # Run: python -c "import os; print(os.path.getsize('path/to/your.pth'))" to get the exact value.
-EXPECTED_SIZE = 98581485  # TODO: update this after generating new ResNet50 weights
+EXPECTED_SIZE = 295241344 # TODO: update this after generating new ResNet50 weights
 
 
 def ensure_model():
