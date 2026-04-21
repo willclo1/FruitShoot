@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 from pydantic import BaseModel, Field
 from database.connect import get_db
 from typing import List, Optional
 from models.recipes import Recipe
 from models.saved_recipes import SavedRecipe
 from models.users import User
+from models.userIngredientPref import UserIngredientPreference
 from datetime import datetime
 from auth.deps import get_current_user
+import re
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -24,7 +26,7 @@ class RecipeSuggestionRequest(BaseModel):
     ripeness_confidence: float = 1.0
     fruit_probs: Optional[List[float]] = None
     ripeness_probs: Optional[List[float]] = None
-    limit: int = 20  # ← default raised from 5
+    limit: int = 20
 
 
 class PublicRecipeResponse(BaseModel):
@@ -94,34 +96,13 @@ class SaveRecipeResponse(BaseModel):
     is_saved: bool
 
 
+class IngredientPreferenceResponse(BaseModel):
+    ingredient_name: str
+    ingredient_count: int
+
+
 # ---------------------------------------------------------------------------
 # SCORING ENGINE
-# ---------------------------------------------------------------------------
-#
-# FRUIT_LABELS    = ["Apple", "Banana", "Strawberry", "Non-Fruit"]  # idx 0-3
-# RIPENESS_LABELS = ["Ripe", "Rotten", "N/A", "Underripe"]          # idx 0-3
-#
-# For real fruits (f_idx < 3), predict.py masks index 2 (N/A) to -inf, so
-# only three ripeness states are reachable: Ripe(0), Rotten(1), Underripe(3).
-#
-# Score breakdown (max ≈ 93):
-#   ┌──────────────────────────────────────┬──────┐
-#   │ Fruit keyword in ingredients list    │  50  │
-#   │ Fruit keyword in title               │  30  │
-#   │ Fruit keyword in instructions only   │  20  │
-#   │ Secondary / flavour-pair keywords    │   3  │
-#   │ Ripeness technique cluster (best)    │  35  │
-#   │ Confidence bonus                     │  5–10│
-#   │ Soft ripeness bonus (prob-weighted)  │   0–5│
-#   └──────────────────────────────────────┴──────┘
-#
-# Label thresholds (calibrated to real distribution):
-#   92+  → Excellent  (ingredients + perfect technique + flavour pairs)
-#   88+  → Good       (ingredients + perfect technique)
-#   65+  → Fair       (title + technique, or ingredients + weak technique)
-#   <65  → Weak
-#
-# A recipe with no primary fruit keyword scores 0 and is excluded entirely.
 # ---------------------------------------------------------------------------
 
 FRUIT_PROFILE: dict[str, dict] = {
@@ -157,11 +138,6 @@ FRUIT_PROFILE: dict[str, dict] = {
     },
 }
 
-# RIPENESS_LABELS indices reachable for our fruits:
-#   0 = Ripe  |  1 = Rotten  |  3 = Underripe
-#
-# Each cluster: (trigger_keywords, max_points, human_readable_reason)
-# Only the highest-scoring cluster per recipe is used.
 RIPENESS_TECHNIQUE_MAP: dict[str, dict[str, list[tuple[list[str], int, str]]]] = {
     "apple": {
         "ripe": [
@@ -351,15 +327,15 @@ RIPENESS_TECHNIQUE_MAP: dict[str, dict[str, list[tuple[list[str], int, str]]]] =
 }
 
 _FRUIT_ALIASES: dict[str, str] = {
-    "apple":      "apple",
-    "banana":     "banana",
+    "apple": "apple",
+    "banana": "banana",
     "strawberry": "strawberry",
 }
 _RIPENESS_ALIASES: dict[str, str] = {
-    "ripe":      "ripe",
+    "ripe": "ripe",
     "underripe": "underripe",
-    "rotten":    "rotten",
-    "n/a":       "ripe",
+    "rotten": "rotten",
+    "n/a": "ripe",
 }
 
 
@@ -379,21 +355,7 @@ def score_recipe(
     ripeness_confidence: float = 1.0,
     ripeness_probs: Optional[List[float]] = None,
 ) -> tuple[float, str]:
-    """
-    Score a recipe against a detected fruit and ripeness state.
-    Returns (score, reason) — score of 0 means exclude from results.
-
-    Score anatomy:
-      1. Fruit presence       0–50 pts  (ingredients > title > instructions)
-      2. Flavour pairs        0–3  pts  (secondary keyword bonus)
-      3. Ripeness technique   0–35 pts  (best matching cluster only)
-      4. Confidence bonus     5–10 pts  (geometric mean; 5 flat for defaults)
-      5. Soft ripeness bonus  0–5  pts  (neighbour states via prob vector)
-
-    Label thresholds:
-      92+  Excellent  |  88+  Good  |  65+  Fair  |  <65  Weak
-    """
-    fruit_key    = _norm(fruit, _FRUIT_ALIASES)
+    fruit_key = _norm(fruit, _FRUIT_ALIASES)
     ripeness_key = _norm(ripeness, _RIPENESS_ALIASES)
 
     profile = FRUIT_PROFILE.get(fruit_key)
@@ -403,13 +365,12 @@ def score_recipe(
             return 30.0, f"Contains {fruit}"
         return 0.0, ""
 
-    ingredients_text  = recipe.ingredients_description.lower()
-    title_text        = recipe.title.lower()
+    ingredients_text = recipe.ingredients_description.lower()
+    title_text = recipe.title.lower()
     instructions_text = recipe.instructions_description.lower()
-    full_text         = f"{title_text} {ingredients_text} {instructions_text}"
+    full_text = f"{title_text} {ingredients_text} {instructions_text}"
 
-    # ── 1. Fruit presence ────────────────────────────────────────────────
-    fruit_score  = 0
+    fruit_score = 0
     reason_parts: list[str] = []
 
     if _contains_any(ingredients_text, profile["primary"]):
@@ -424,20 +385,18 @@ def score_recipe(
     else:
         return 0.0, ""
 
-    # ── 2. Flavour-pair bonus (small — prevents inflating rank) ──────────
     if _contains_any(full_text, profile["secondary"]):
         fruit_score += 3
         reason_parts.append("Complementary flavours")
 
-    # ── 3. Ripeness technique match ───────────────────────────────────────
     technique_map = RIPENESS_TECHNIQUE_MAP.get(fruit_key, {})
-    clusters      = technique_map.get(ripeness_key, [])
-    best_pts      = 0
-    best_reason   = ""
+    clusters = technique_map.get(ripeness_key, [])
+    best_pts = 0
+    best_reason = ""
 
     for keywords, pts, label in clusters:
         if _contains_any(full_text, keywords) and pts > best_pts:
-            best_pts    = pts
+            best_pts = pts
             best_reason = label
 
     if best_pts:
@@ -448,18 +407,12 @@ def score_recipe(
 
     ripeness_score = best_pts
 
-    # ── 4. Confidence bonus ───────────────────────────────────────────────
-    # Both exactly 1.0 → caller passed defaults, not real model output.
-    # Give a flat 5 pts so genuine high-confidence results rank above them.
     if fruit_confidence == 1.0 and ripeness_confidence == 1.0:
         confidence_bonus = 5.0
     else:
-        combined_conf    = (fruit_confidence * ripeness_confidence) ** 0.5
+        combined_conf = (fruit_confidence * ripeness_confidence) ** 0.5
         confidence_bonus = round(10.0 * combined_conf, 2)
 
-    # ── 5. Soft ripeness bonus ────────────────────────────────────────────
-    # RIPENESS_LABELS = ["Ripe", "Rotten", "N/A", "Underripe"]
-    #                     idx 0    idx 1    idx 2    idx 3
     soft_bonus = 0.0
     if ripeness_probs and len(ripeness_probs) >= 4:
         neighbour_index_map = {0: "ripe", 1: "rotten", 3: "underripe"}
@@ -476,7 +429,7 @@ def score_recipe(
 
     soft_bonus = min(round(soft_bonus, 2), 5.0)
 
-    total  = round(fruit_score + ripeness_score + confidence_bonus + soft_bonus, 2)
+    total = round(fruit_score + ripeness_score + confidence_bonus + soft_bonus, 2)
     reason = " · ".join(reason_parts) if reason_parts else "Possible match"
     return total, reason
 
@@ -485,8 +438,6 @@ def score_recipe(
 # ALLERGY FILTER
 # ---------------------------------------------------------------------------
 
-# Map each allergen category to specific ingredient keywords that indicate
-# its presence.  The category name itself is always included.
 ALLERGEN_KEYWORDS: dict[str, list[str]] = {
     "milk": [
         "milk", "cream", "butter", "cheese", "yogurt", "yoghurt",
@@ -530,7 +481,6 @@ ALLERGEN_KEYWORDS: dict[str, list[str]] = {
 
 
 def _get_user_allergens(db: Session, user_id: int) -> list[str]:
-    """Return expanded lowercased allergen keywords for the current user."""
     user = db.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
     if not user or not user.allergies:
         return []
@@ -542,11 +492,149 @@ def _get_user_allergens(db: Session, user_id: int) -> list[str]:
 
 
 def _recipe_contains_allergen(recipe: Recipe, allergens: list[str]) -> bool:
-    """Check if a recipe's ingredients or title contain any of the user's allergens."""
     if not allergens:
         return False
     text = (recipe.ingredients_description + " " + recipe.title).lower()
     return any(allergen in text for allergen in allergens)
+
+
+# ---------------------------------------------------------------------------
+# INGREDIENT PERSONALIZATION HELPERS
+# ---------------------------------------------------------------------------
+
+STOPWORDS = {
+    "cup", "cups", "tbsp", "tsp", "teaspoon", "teaspoons", "tablespoon", "tablespoons",
+    "oz", "ounce", "ounces", "lb", "lbs", "pound", "pounds", "g", "kg",
+    "ml", "l", "pinch", "dash", "can", "cans", "large", "small", "medium",
+    "fresh", "ripe", "ground", "chopped", "diced", "sliced", "minced",
+    "optional", "to", "taste", "of", "and"
+}
+
+
+def normalize_ingredient(line: str) -> Optional[str]:
+    if not line:
+        return None
+
+    text = line.strip().lower()
+    text = re.sub(r"\([^)]*\)", " ", text)
+    text = re.sub(r"^\s*[\d\/\.\-]+\s*", "", text)
+    text = re.sub(r"[^a-zA-Z\s]", " ", text)
+
+    words = [w for w in text.split() if w not in STOPWORDS]
+    if not words:
+        return None
+
+    cleaned = " ".join(words).strip()
+
+    replacements = {
+        "bananas": "banana",
+        "apples": "apple",
+        "strawberries": "strawberry",
+        "oat": "oats",
+        "rolled oats": "oats",
+        "old fashioned oats": "oats",
+        "apple sauce": "applesauce",
+    }
+
+    if cleaned in replacements:
+        return replacements[cleaned]
+
+    if cleaned.endswith("s") and cleaned not in {"oats"}:
+        cleaned = cleaned[:-1]
+
+    return cleaned or None
+
+
+def extract_ingredients(ingredients_description: str) -> list[str]:
+    if not ingredients_description:
+        return []
+
+    raw_parts = []
+    for line in ingredients_description.splitlines():
+        line = line.strip()
+        if line:
+            raw_parts.append(line)
+
+    if not raw_parts:
+        raw_parts = [p.strip() for p in ingredients_description.split(",") if p.strip()]
+
+    normalized = []
+    for part in raw_parts:
+        ingredient = normalize_ingredient(part)
+        if ingredient:
+            normalized.append(ingredient)
+
+    return list(dict.fromkeys(normalized))
+
+
+def add_recipe_ingredients_to_user_profile(db: Session, user_id: int, recipe: Recipe) -> None:
+    ingredients = extract_ingredients(recipe.ingredients_description)
+
+    for ingredient in ingredients:
+        pref = db.execute(
+            select(UserIngredientPreference).where(
+                UserIngredientPreference.user_id == user_id,
+                UserIngredientPreference.ingredient_name == ingredient,
+            )
+        ).scalar_one_or_none()
+
+        if pref:
+            pref.ingredient_count += 1
+        else:
+            db.add(
+                UserIngredientPreference(
+                    user_id=user_id,
+                    ingredient_name=ingredient,
+                    ingredient_count=1,
+                )
+            )
+
+
+def remove_recipe_ingredients_from_user_profile(db: Session, user_id: int, recipe: Recipe) -> None:
+    ingredients = extract_ingredients(recipe.ingredients_description)
+
+    for ingredient in ingredients:
+        pref = db.execute(
+            select(UserIngredientPreference).where(
+                UserIngredientPreference.user_id == user_id,
+                UserIngredientPreference.ingredient_name == ingredient,
+            )
+        ).scalar_one_or_none()
+
+        if not pref:
+            continue
+
+        pref.ingredient_count -= 1
+        if pref.ingredient_count <= 0:
+            db.delete(pref)
+
+
+def get_top_user_ingredients(db: Session, user_id: int, limit: int = 5) -> list[tuple[str, int]]:
+    rows = db.execute(
+        select(
+            UserIngredientPreference.ingredient_name,
+            UserIngredientPreference.ingredient_count,
+        )
+        .where(UserIngredientPreference.user_id == user_id)
+        .order_by(
+            UserIngredientPreference.ingredient_count.desc(),
+            UserIngredientPreference.ingredient_name.asc(),
+        )
+        .limit(limit)
+    ).all()
+
+    return [(row.ingredient_name, row.ingredient_count) for row in rows]
+
+
+def recipe_personalization_score(recipe: Recipe, top_ingredients: list[tuple[str, int]]) -> int:
+    text = f"{recipe.title} {recipe.ingredients_description}".lower()
+    score = 0
+
+    for ingredient, count in top_ingredients:
+        if ingredient in text:
+            score += count
+
+    return score
 
 
 # ---------------------------------------------------------------------------
@@ -628,6 +716,8 @@ def explore_recipes(
     current_user: int = Depends(get_current_user),
 ):
     allergens = _get_user_allergens(db, current_user)
+    top_ingredients = get_top_user_ingredients(db, current_user, limit=5)
+
     query = (
         select(Recipe)
         .where(Recipe.user_id != current_user)
@@ -645,19 +735,16 @@ def explore_recipes(
                 ~Recipe.ingredients_description.ilike(f"%{excluded}%")
             )
 
-    query = (
-        query
-        .order_by(Recipe.created_at.desc())
-        .limit(limit)
-        .offset(offset)
-    )
+    candidate_limit = max(limit * 3, 50)
 
-    recipes = db.execute(query).scalars().all()
-    filtered = [r for r in recipes if not _recipe_contains_allergen(r, allergens)]
-    page = filtered[offset : offset + limit]
+    candidate_recipes = db.execute(
+        query.order_by(Recipe.created_at.desc()).limit(candidate_limit)
+    ).scalars().all()
 
-    results = []
-    for recipe in page:
+    filtered = [r for r in candidate_recipes if not _recipe_contains_allergen(r, allergens)]
+
+    scored_recipes = []
+    for recipe in filtered:
         is_saved = db.execute(
             select(SavedRecipe).where(
                 SavedRecipe.user_id == current_user,
@@ -670,6 +757,22 @@ def explore_recipes(
             .where(SavedRecipe.recipe_id == recipe.id)
         ).scalar_one()
 
+        personalization_score = recipe_personalization_score(recipe, top_ingredients)
+        final_score = (personalization_score * 5) + (save_count * 2)
+
+        scored_recipes.append(
+            (final_score, recipe, is_saved, save_count)
+        )
+
+    scored_recipes.sort(
+        key=lambda x: (x[0], x[1].created_at),
+        reverse=True,
+    )
+
+    page = scored_recipes[offset: offset + limit]
+
+    results = []
+    for _, recipe, is_saved, save_count in page:
         results.append(
             ExploreRecipeResponse(
                 id=recipe.id,
@@ -726,6 +829,21 @@ def get_saved_recipes(
     return results
 
 
+@router.get("/me/top-ingredients", response_model=List[IngredientPreferenceResponse])
+def get_my_top_ingredients(
+    db: Session = Depends(get_db),
+    current_user: int = Depends(get_current_user),
+):
+    rows = get_top_user_ingredients(db, current_user, limit=10)
+    return [
+        IngredientPreferenceResponse(
+            ingredient_name=name,
+            ingredient_count=count,
+        )
+        for name, count in rows
+    ]
+
+
 @router.post("/{recipe_id}/save", response_model=SaveRecipeResponse)
 def save_recipe(
     recipe_id: int,
@@ -754,6 +872,9 @@ def save_recipe(
 
     saved = SavedRecipe(user_id=current_user, recipe_id=recipe_id)
     db.add(saved)
+
+    add_recipe_ingredients_to_user_profile(db, current_user, recipe)
+
     db.commit()
 
     return SaveRecipeResponse(recipe_id=recipe_id, is_saved=True)
@@ -774,6 +895,13 @@ def unsave_recipe(
 
     if not saved:
         return SaveRecipeResponse(recipe_id=recipe_id, is_saved=False)
+
+    recipe = db.execute(
+        select(Recipe).where(Recipe.id == recipe_id)
+    ).scalar_one_or_none()
+
+    if recipe:
+        remove_recipe_ingredients_from_user_profile(db, current_user, recipe)
 
     db.delete(saved)
     db.commit()

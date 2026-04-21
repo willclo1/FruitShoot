@@ -64,6 +64,22 @@ CREATE TABLE saved_recipes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
+CREATE TABLE user_ingredient_preferences (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  ingredient_name VARCHAR(255) NOT NULL,
+  ingredient_count INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_user_ingredient (user_id, ingredient_name),
+  KEY idx_uip_user (user_id),
+  KEY idx_uip_ingredient (ingredient_name),
+  CONSTRAINT fk_uip_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
 CREATE TABLE retraining_samples (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   image_id BIGINT UNSIGNED NOT NULL,
