@@ -27,7 +27,7 @@ def get_model():
     if isinstance(state, dict) and "model_state_dict" in state:
         state = state["model_state_dict"]
 
-    model.load_state_dict(state)
+    model.load_state_dict(state, strict=True)
     model.to(device)
     model.eval()
 

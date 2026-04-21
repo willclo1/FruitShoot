@@ -1,5 +1,9 @@
 import sys
 import asyncio
+import logging
+from urllib import response
+
+
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
@@ -43,6 +47,9 @@ from database.connect import engine, get_db
 from ml.model import get_model
 from ml.download import ensure_model
 from ml.predict import predict_image_path
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 register_heif_opener()
 
@@ -154,13 +161,17 @@ def upload_image(
     model = get_model()
     pred = predict_image_path(model, str(file_path))
 
-    return {
+
+    response = {
         "id": image.id,
         "filename": image.location,
         "url": f"/uploads/{image.location}",
         "uploaded_at": image.uploaded_at,
         "prediction": pred,
     }
+    logger.info(f"Upload response: {response}")
+
+    return response
 
 @app.post("/user/profile/upload")
 def upload_image(
@@ -197,6 +208,9 @@ def upload_image(
     user.profile_id = image.id
     db.commit()
     db.refresh(user)
+
+
+
 
     return {
         "id": image.id,
