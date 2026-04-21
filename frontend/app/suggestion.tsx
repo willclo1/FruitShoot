@@ -88,12 +88,12 @@ export default function SuggestionsScreen() {
         </View>
 
         <View style={styles.cardBody}>
-          <Text style={styles.cardTitle} numberOfLines={2}>
+          <Text style={styles.cardTitle} numberOfLines={3}>
             {item.title}
           </Text>
 
           {!!item.reason && (
-            <Text style={styles.reason} numberOfLines={2}>
+            <Text style={styles.reason} numberOfLines={3}>
               {item.reason}
             </Text>
           )}

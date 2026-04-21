@@ -488,9 +488,6 @@ export default function ResultsScreen() {
               ]}
             >
               {fruit}
-              {fruitPct !== null ? (
-                <Text style={styles.infoMuted}> · {fruitPct}%</Text>
-              ) : null}
             </Text>
           </View>
 
@@ -513,9 +510,6 @@ export default function ResultsScreen() {
                   ]}
                 >
                   {ripenessLabel}
-                  {ripePct !== null ? (
-                    <Text style={styles.infoMuted}> · {ripePct}%</Text>
-                  ) : null}
                 </Text>
               </View>
             </>

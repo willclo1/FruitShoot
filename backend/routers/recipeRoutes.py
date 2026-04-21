@@ -301,7 +301,7 @@ RIPENESS_TECHNIQUE_MAP: dict[str, dict[str, list[tuple[list[str], int, str]]]] =
                     "garnish", "topping", "sauce", "coulis",
                 ],
                 35,
-                "Peak-ripe strawberries are best fresh or barely cooked",
+                "Peak-ripe strawberries are best fresh",
             ),
             (
                 ["jam", "jelly", "preserve", "compote"],
