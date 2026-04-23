@@ -119,13 +119,11 @@ npm install
 npx expo start
 ```
 
-Set API base URL in .env.dev:
+Set API base URL in .env.dev or .env.prod (depending if you want a production or local setup):
 
 ```env
 EXPO_PUBLIC_API_BASE_URL=http://YOUR_SERVER_IP:8000
 ```
-
-For production: Set API base URL in .env.prod:
 
 ---
 
