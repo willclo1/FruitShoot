@@ -1,34 +1,16 @@
 #!/usr/bin/env python3
-"""
-Generate a balanced retraining manifest from FruitShoot's retraining_samples table.
-
-Reads config from:
-- .env
-- .env.local (overrides .env if present)
-
-What it does:
-- Selects up to N unused retraining samples
-- Balances across (fruit_index, ripeness_index) buckets
-- Joins to images to get file locations
-- Writes:
-    1. a CSV manifest with labels + paths
-    2. a TXT file with just image paths
-    3. a summary TXT with bucket counts
-- Optionally marks selected samples as used_for_training = TRUE
-
-Required packages:
-    pip install pymysql python-dotenv
-"""
 
 from __future__ import annotations
 
 from dotenv import load_dotenv
+
 load_dotenv(".env")
 load_dotenv(".env.local", override=True)
 
 import csv
 import os
 import sys
+
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -36,6 +18,8 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 import pymysql
+
+from ml.retrain import fine_tune_from_manifest
 
 
 @dataclass
@@ -52,8 +36,10 @@ class Sample:
 
 def get_env(name: str, default: str | None = None, required: bool = False) -> str:
     value = os.getenv(name, default)
+
     if required and (value is None or value == ""):
         raise ValueError(f"Missing required environment variable: {name}")
+
     return value or ""
 
 
@@ -103,6 +89,7 @@ def fetch_candidate_samples(
         rows = cursor.fetchall()
 
     samples: List[Sample] = []
+
     for row in rows:
         samples.append(
             Sample(
@@ -116,6 +103,7 @@ def fetch_candidate_samples(
                 created_at=row["created_at"],
             )
         )
+
     return samples
 
 
@@ -143,6 +131,7 @@ def select_balanced_samples(samples: List[Sample], batch_size: int) -> List[Samp
         return []
 
     buckets = bucketize(samples)
+
     active_bucket_keys = [key for key, bucket in buckets.items() if bucket]
 
     if not active_bucket_keys:
@@ -155,6 +144,7 @@ def select_balanced_samples(samples: List[Sample], batch_size: int) -> List[Samp
     for key in active_bucket_keys:
         available = buckets[key]
         take_count = min(per_bucket_target, len(available))
+
         selected.extend(available[:take_count])
         buckets[key] = available[take_count:]
 
@@ -166,6 +156,7 @@ def select_balanced_samples(samples: List[Sample], batch_size: int) -> List[Samp
         for key in active_bucket_keys:
             if remaining_needed <= 0:
                 break
+
             if buckets[key]:
                 selected.append(buckets[key].pop(0))
                 remaining_needed -= 1
@@ -182,6 +173,7 @@ def write_manifest_csv(samples: List[Sample], filepath: Path) -> None:
 
     with filepath.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
+
         writer.writerow(
             [
                 "retraining_sample_id",
@@ -205,7 +197,9 @@ def write_manifest_csv(samples: List[Sample], filepath: Path) -> None:
                     s.ripeness_index,
                     s.fruit_confidence,
                     s.ripeness_confidence,
-                    s.created_at.isoformat() if hasattr(s.created_at, "isoformat") else str(s.created_at),
+                    s.created_at.isoformat()
+                    if hasattr(s.created_at, "isoformat")
+                    else str(s.created_at),
                 ]
             )
 
@@ -222,12 +216,14 @@ def write_summary_txt(samples: List[Sample], filepath: Path) -> None:
     filepath.parent.mkdir(parents=True, exist_ok=True)
 
     counts: Dict[Tuple[int, int], int] = defaultdict(int)
+
     for s in samples:
         counts[(s.fruit_index, s.ripeness_index)] += 1
 
     with filepath.open("w", encoding="utf-8") as f:
         f.write(f"Selected samples: {len(samples)}\n")
         f.write("Bucket counts (fruit_index, ripeness_index):\n")
+
         for key in sorted(counts.keys()):
             f.write(f"  {key}: {counts[key]}\n")
 
@@ -237,6 +233,7 @@ def mark_samples_used(conn, sample_ids: List[int]) -> None:
         return
 
     placeholders = ",".join(["%s"] * len(sample_ids))
+
     query = f"""
         UPDATE retraining_samples
         SET used_for_training = TRUE
@@ -251,11 +248,31 @@ def main() -> int:
     try:
         output_dir = Path(get_env("OUTPUT_DIR", "./output"))
         batch_size = int(get_env("BATCH_SIZE", "200"))
+
         min_fruit_conf = float(get_env("MIN_FRUIT_CONFIDENCE", "0.0"))
         min_ripeness_conf = float(get_env("MIN_RIPENESS_CONFIDENCE", "0.0"))
+
         mark_used = parse_bool(get_env("MARK_USED", "false"))
+        run_retraining = parse_bool(get_env("RUN_RETRAINING", "true"))
+
+        model_path = get_env(
+            "MODEL_PATH",
+            "backend/ml/weights/best_dual_stream_model.pth",
+        )
+
+        output_model_dir = get_env(
+            "OUTPUT_MODEL_DIR",
+            "backend/ml/weights",
+        )
+
+        image_base_dir = get_env("IMAGE_BASE_DIR", "")
+
+        epochs = int(get_env("RETRAIN_EPOCHS", "3"))
+        retrain_batch_size = int(get_env("RETRAIN_BATCH_SIZE", "16"))
+        learning_rate = float(get_env("RETRAIN_LR", "0.00001"))
 
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+
         manifest_csv = output_dir / f"retraining_manifest_{timestamp}.csv"
         paths_txt = output_dir / f"retraining_paths_{timestamp}.txt"
         summary_txt = output_dir / f"retraining_summary_{timestamp}.txt"
@@ -268,7 +285,6 @@ def main() -> int:
                 min_fruit_conf=min_fruit_conf,
                 min_ripeness_conf=min_ripeness_conf,
             )
-
 
             if len(candidates) < batch_size:
                 print(f"Not enough samples to build a batch of {batch_size}. Exiting.")
@@ -292,6 +308,22 @@ def main() -> int:
             print(f"Wrote TXT paths:    {paths_txt}")
             print(f"Wrote summary:      {summary_txt}")
 
+            if run_retraining:
+                new_model_path = fine_tune_from_manifest(
+                    manifest_csv=manifest_csv,
+                    model_path=model_path,
+                    output_version=timestamp,
+                    output_model_dir=output_model_dir,
+                    image_base_dir=image_base_dir,
+                    epochs=epochs,
+                    batch_size=retrain_batch_size,
+                    lr=learning_rate,
+                )
+
+                print(f"Fine-tuned model saved to: {new_model_path}")
+            else:
+                print("RUN_RETRAINING=false, so manifest was generated only.")
+
             if mark_used:
                 sample_ids = [s.retraining_sample_id for s in selected]
                 mark_samples_used(conn, sample_ids)
@@ -304,6 +336,7 @@ def main() -> int:
         except Exception:
             conn.rollback()
             raise
+
         finally:
             conn.close()
 
