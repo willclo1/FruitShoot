@@ -28,6 +28,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+
   backend:
     build: ./backend
     container_name: fruitshoot-backend
@@ -41,6 +42,21 @@ services:
       - ./database/data/images:/app/database/data/images
     ports:
       - "8000:8000"
+
+  retraining-manifest:
+    build: ./backend
+    container_name: fruitshoot-retraining-manifest
+    env_file:
+      - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./database/data/images:/app/database/data/images
+      - ./backend/retraining_outputs:/app/backend/retraining_outputs
+    command: python -m scripts.generate_train_data
+    profiles:
+      - jobs
 
 volumes:
   mysql_data:
