@@ -59,6 +59,7 @@ def predict_image_path(model, image_path: str):
  
     return {
         "fruit": FRUIT_LABELS[f_idx],
+        "fruit_index": f_idx,
         "ripeness": RIPENESS_LABELS[r_idx],
         "ripeness_index": r_idx,
         "fruit_confidence": float(fruit_conf.item()),
