@@ -702,7 +702,7 @@ export default function ResultsScreen() {
         visible={correctionModalVisible}
         currentFruitIndex={fruitIndex}
         currentRipenessIndex={ripenessIndex ?? 0}
-        fontBold={fontBold}
+        fontBold={fontBold ?? ""}
         finalScale={finalScale}
         onSubmit={handleCorrectionSubmit}
         onCancel={() => setCorrectionModalVisible(false)}

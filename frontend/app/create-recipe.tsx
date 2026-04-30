@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +23,8 @@ import {
   instructionsToDescription,
 } from "@/services/recipeFormat";
 import { useFontStyle, useTouchTarget } from "@/services/settingsContext";
+import { tts } from "@/services/tts";
+import { useSettings } from "@/services/settingsContext";
 
 const CAMERA_GREEN = "#1F4C47";
 const CREAM = "#FAF7F2";
@@ -34,6 +36,7 @@ export default function CreateRecipeScreen() {
   const { scale, fontRegular, fontBold } = useFontStyle();
   const tt = useTouchTarget();
   const finalScale = scale * tt.fontBoost;
+  const { settings, loaded } = useSettings();
 
   const [title, setTitle] = useState("");
   const [ingredients, setIngredients] = useState<string[]>([""]);
@@ -62,6 +65,7 @@ export default function CreateRecipeScreen() {
         "Create Recipe",
         "Please complete name, ingredients, and instructions."
       );
+      tts.say("Please complete name, ingredients, and instructions.", { rate: settings.ttsRate, pitch: settings.ttsPitch });
       return;
     }
 
@@ -76,10 +80,16 @@ export default function CreateRecipeScreen() {
       router.back();
     } catch (e: any) {
       Alert.alert("Create Recipe", e?.message || "Could not create recipe");
+      tts.say(e?.message || "Could not create recipe", { rate: settings.ttsRate, pitch: settings.ttsPitch });
     } finally {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (!loaded) return;
+    tts.autoSay("Create recipe. Provide a title, ingredients, and numbered instructions.", { rate: settings.ttsRate, pitch: settings.ttsPitch });
+  }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -161,6 +171,7 @@ export default function CreateRecipeScreen() {
               ]}
               editable={!submitting}
               returnKeyType="next"
+              onFocus={() => tts.say("Recipe name", { rate: settings.ttsRate, pitch: settings.ttsPitch, interrupt: false })}
             />
 
             <View style={styles.divider} />
@@ -217,6 +228,7 @@ export default function CreateRecipeScreen() {
           <View style={styles.btnRow}>
             <Pressable
               onPress={() => router.back()}
+              onPressIn={() => tts.say("Cancel", { rate: settings.ttsRate, pitch: settings.ttsPitch })}
               style={({ pressed }) => [
                 styles.secondaryBtn,
                 {
@@ -238,7 +250,7 @@ export default function CreateRecipeScreen() {
             </Pressable>
 
             <Pressable
-              onPress={onCreate}
+              onPress={() => { tts.say("Create recipe", { rate: settings.ttsRate, pitch: settings.ttsPitch }); onCreate(); }}
               style={({ pressed }) => [
                 styles.primaryBtn,
                 {

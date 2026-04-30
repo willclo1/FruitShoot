@@ -18,7 +18,8 @@ import {
   parseIngredients,
   parseInstructions,
 } from "@/services/recipeFormat";
-import { useFontStyle, useTouchTarget } from "@/services/settingsContext";
+import { useFontStyle, useTouchTarget, useSettings } from "@/services/settingsContext";
+import { tts } from "@/services/tts";
 import TourTarget from "@/components/tutorial/TourTarget";
 
 const CAMERA_GREEN = "#1F4C47";
@@ -89,6 +90,7 @@ export default function RecipesScreen() {
   const { scale, fontRegular, fontBold } = useFontStyle();
   const tt = useTouchTarget();
   const finalScale = scale * tt.fontBoost;
+  const { settings, loaded } = useSettings();
 
   const [tab, setTab] = useState<TabKey>(
     params.tab === "saved" ? "saved" : "uploads"
@@ -148,6 +150,11 @@ export default function RecipesScreen() {
     }, [tab])
   );
 
+  React.useEffect(() => {
+    if (!loaded) return;
+    tts.autoSay("Recipes. Browse your recipes. Use Create to add a new recipe or Import to bring one in.", { rate: settings.ttsRate, pitch: settings.ttsPitch });
+  }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch]);
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.screen}>
@@ -194,7 +201,7 @@ export default function RecipesScreen() {
 
         <View style={styles.actionRow}>
           <Pressable
-            onPress={() => router.push("/create-recipe")}
+            onPress={() => { tts.say("Create recipe", { rate: settings.ttsRate, pitch: settings.ttsPitch }); router.push("/create-recipe"); }}
             style={({ pressed }) => [
               styles.primaryActionButton,
               pressed && styles.pressed,
@@ -211,7 +218,7 @@ export default function RecipesScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => router.push("/upload-recipe")}
+            onPress={() => { tts.say("Import recipe", { rate: settings.ttsRate, pitch: settings.ttsPitch }); router.push("/upload-recipe"); }}
             style={({ pressed }) => [
               styles.secondaryActionButton,
               pressed && styles.pressed,
@@ -255,7 +262,7 @@ export default function RecipesScreen() {
 
             if (item === "saved") {
               return (
-                <TourTarget key="tour-saved-tab" id="recipes-saved-tab" style={{ flex: 1 }}>
+                <TourTarget key="tour-saved-tab" id="recipes-saved-tab" order={5} text="Saved recipes tab" style={{ flex: 1 }}>
                   {button}
                 </TourTarget>
               );
@@ -326,13 +333,14 @@ export default function RecipesScreen() {
             renderItem={({ item }) => (
               <RecipeCard
                 item={item}
-                onPress={() =>
+                onPress={() => {
+                  tts.say(item.title, { rate: settings.ttsRate, pitch: settings.ttsPitch });
                   router.push(
                     tab === "saved"
                       ? `/recipe?id=${item.id}&public=1`
                       : `/recipe?id=${item.id}`
-                  )
-                }
+                  );
+                }}
               />
             )}
           />

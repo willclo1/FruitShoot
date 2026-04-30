@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
 import { IngredientsInputList } from "@/components/ingredients-input-list";
@@ -31,7 +32,9 @@ import {
   parseIngredients,
   parseInstructions,
 } from "@/services/recipeFormat";
-import { useFontStyle, useTouchTarget } from "@/services/settingsContext";
+import { useFontStyle, useTouchTarget, useSettings } from "@/services/settingsContext";
+import { tts } from "@/services/tts";
+import { ttsController } from "@/services/ttsController";
 
 const CAMERA_GREEN = "#1F4C47";
 const CREAM = "#FAF7F2";
@@ -50,6 +53,7 @@ export default function RecipeScreen() {
   const { scale, fontRegular, fontBold } = useFontStyle();
   const tt = useTouchTarget();
   const finalScale = scale * tt.fontBoost;
+  const { settings, loaded } = useSettings();
 
   const [recipe, setRecipe] = useState<AnyRecipe | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,6 +62,33 @@ export default function RecipeScreen() {
   const [title, setTitle] = useState("");
   const [ingredients, setIngredients] = useState<string[]>([""]);
   const [steps, setSteps] = useState<string[]>([""]);
+
+  const [playerState, setPlayerState] = useState<{
+    playing: boolean;
+    index: number;
+    total: number;
+    line?: string;
+  }>(() => ttsController.getState());
+
+  const playAllSteps = () => {
+    if (!recipe) return;
+    const parsed = parseInstructions(recipe.instructions_description || "");
+    const lines = parsed.map((s, i) => `Step ${i + 1}. ${s}`);
+    if (!lines.length) return;
+
+    const current = ttsController.getState();
+    if (current.playing) {
+      ttsController.stop();
+      return;
+    }
+
+    ttsController.playLines(lines, { rate: settings.ttsRate, pitch: settings.ttsPitch });
+  };
+
+  React.useEffect(() => {
+    const unsub = ttsController.subscribe((s) => setPlayerState(s));
+    return () => { unsub(); ttsController.stop(); };
+  }, []);
 
   const isEditing = edit === "1";
   const isPublic = isPublicParam === "1";
@@ -100,6 +131,13 @@ export default function RecipeScreen() {
       };
     }, [id, isPublic])
   );
+
+  React.useEffect(() => {
+    if (!loaded || !recipe) return;
+    const ingredientCount = (recipe.ingredients_description || "").split('\n').filter(Boolean).length;
+    const stepCount = (recipe.instructions_description || "").split('\n').filter(Boolean).length;
+    tts.autoSay(`${recipe.title}. ${ingredientCount} ingredients. ${stepCount} steps.`, { rate: settings.ttsRate, pitch: settings.ttsPitch });
+  }, [loaded, recipe, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch]);
 
   const canSave = useMemo(() => {
     const cleanIngredients = ingredients.map((i) => i.trim()).filter(Boolean);
@@ -509,7 +547,7 @@ export default function RecipeScreen() {
 
           <View style={styles.ingredientsWrap}>
             {parsedIngredients.map((item, idx) => (
-              <View key={`${recipe.id}-ingredient-${idx}`} style={styles.pill}>
+              <Pressable key={`${recipe.id}-ingredient-${idx}`} style={styles.pill} onPress={() => tts.say(item, { rate: settings.ttsRate, pitch: settings.ttsPitch })}>
                 <Text
                   style={[
                     styles.pillText,
@@ -518,7 +556,7 @@ export default function RecipeScreen() {
                 >
                   {item}
                 </Text>
-              </View>
+              </Pressable>
             ))}
           </View>
         </View>
@@ -535,7 +573,7 @@ export default function RecipeScreen() {
 
           <View style={styles.stepsList}>
             {parsedSteps.map((step, idx) => (
-              <View key={`${recipe.id}-step-${idx}`} style={styles.stepRow}>
+              <Pressable key={`${recipe.id}-step-${idx}`} style={styles.stepRow} onPress={() => tts.say(`Step ${idx + 1}. ${step}`, { rate: settings.ttsRate, pitch: settings.ttsPitch })}>
                 <View style={styles.stepBadgeLarge}>
                   <Text
                     style={[
@@ -555,7 +593,7 @@ export default function RecipeScreen() {
                 >
                   {step}
                 </Text>
-              </View>
+              </Pressable>
             ))}
           </View>
         </View>
@@ -590,6 +628,21 @@ export default function RecipeScreen() {
                 {submitting ? "Deleting..." : "Delete"}
               </Text>
             </Pressable>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginLeft: 8 }}>
+              <Pressable
+                onPress={playAllSteps}
+                accessibilityLabel={playerState.playing ? "Pause steps" : "Play steps"}
+                style={({ pressed }) => [styles.playButton, pressed && styles.playButtonPressed]}
+              >
+                <MaterialIcons name={playerState.playing ? "pause" : "play-arrow"} size={20} color="#fff" />
+              </Pressable>
+
+              {playerState.total ? (
+                <View style={styles.playBadge}>
+                  <Text style={styles.playBadgeText}>{Math.max(0, playerState.index)}/{playerState.total}</Text>
+                </View>
+              ) : null}
+            </View>
           </View>
         )}
       </ScrollView>
@@ -711,6 +764,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   primaryButtonText: { color: "#fff", fontWeight: "900" },
+
+  playButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: CAMERA_GREEN,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 2,
+  },
+  playButtonPressed: { opacity: 0.8 },
+  playBadge: {
+    minWidth: 44,
+    paddingHorizontal: 8,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(31,76,71,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  playBadgeText: { color: "#17302C", fontWeight: "800" },
 
   secondaryButton: {
     flex: 1,

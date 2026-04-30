@@ -23,7 +23,8 @@ import {
   parseIngredients,
   parseInstructions,
 } from "@/services/recipeFormat";
-import { useFontStyle, useTouchTarget } from "@/services/settingsContext";
+import { useFontStyle, useTouchTarget, useSettings } from "@/services/settingsContext";
+import { tts } from "@/services/tts";
 
 // ─── Palette (matches app: ResultsScreen / HomeScreen) ──────────────────────
 const BRAND        = "#1F4C47";   // app's primary green
@@ -98,6 +99,7 @@ function ExploreRecipeCard({
   fontBold: string;
   minHeight: number;
 }) {
+  const { settings, loaded } = useSettings();
   const ingredients = parseIngredients(item.ingredients_description).slice(0, 4);
   const steps = parseInstructions(item.instructions_description);
   const firstStep = steps[0];
@@ -112,7 +114,10 @@ function ExploreRecipeCard({
 
   return (
     <Pressable
-      onPress={onOpen}
+      onPress={() => {
+        if (loaded && settings.ttsEnabled) tts.say(item.title, { rate: settings.ttsRate, pitch: settings.ttsPitch });
+        onOpen();
+      }}
       style={({ pressed }) => [
         styles.card,
         item.is_saved && styles.cardSaved,
@@ -149,7 +154,7 @@ function ExploreRecipeCard({
         </View>
 
         <Pressable
-          onPress={(e) => { e.stopPropagation(); onToggleSave(); }}
+          onPress={(e) => { e.stopPropagation(); if (loaded && settings.ttsEnabled) tts.say(item.is_saved ? "Unsave" : "Save", { rate: settings.ttsRate, pitch: settings.ttsPitch }); onToggleSave(); }}
           disabled={busy}
           style={({ pressed }) => [
             styles.saveBtn,
@@ -178,14 +183,14 @@ function ExploreRecipeCard({
         </Text>
         <View style={styles.pillRow}>
           {ingredients.map((ingredient, idx) => (
-            <View key={`${item.id}-ing-${idx}`} style={styles.pill}>
+            <Pressable key={`${item.id}-ing-${idx}`} style={styles.pill} onPress={() => { if (loaded && settings.ttsEnabled) tts.say(ingredient, { rate: settings.ttsRate, pitch: settings.ttsPitch }); }}>
               <Text
                 style={[styles.pillText, { fontFamily: fontRegular, fontSize: 12 * finalScale }]}
                 numberOfLines={1}
               >
                 {ingredient}
               </Text>
-            </View>
+            </Pressable>
           ))}
         </View>
       </View>
@@ -196,7 +201,7 @@ function ExploreRecipeCard({
           <Text style={[styles.sectionLabel, { fontFamily: fontBold, fontSize: 10 * finalScale }]}>
             FIRST STEP
           </Text>
-          <View style={styles.stepRow}>
+          <Pressable style={styles.stepRow} onPress={() => { if (loaded && settings.ttsEnabled) tts.say(`First step. ${firstStep}`, { rate: settings.ttsRate, pitch: settings.ttsPitch }); }}>
             <View style={styles.stepNum}>
               <Text style={[styles.stepNumText, { fontFamily: fontBold, fontSize: 11 * finalScale }]}>1</Text>
             </View>
@@ -206,7 +211,7 @@ function ExploreRecipeCard({
             >
               {firstStep}
             </Text>
-          </View>
+          </Pressable>
         </View>
       )}
 
@@ -228,6 +233,7 @@ export default function ExploreRecipesScreen() {
   const { scale, fontRegular, fontBold } = useFontStyle();
   const tt = useTouchTarget();
   const finalScale = scale * tt.fontBoost;
+  const { settings, loaded } = useSettings();
 
   const [recipes, setRecipes] = useState<ExploreRecipe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -312,6 +318,11 @@ export default function ExploreRecipesScreen() {
   React.useEffect(() => {
     loadRecipes();
   }, [loadRecipes]);
+
+  React.useEffect(() => {
+    if (!loaded) return;
+    tts.autoSay("Explore recipes. Browse community recipes, save favorites, and open ones to view full details.", { rate: settings.ttsRate, pitch: settings.ttsPitch });
+  }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch]);
 
   const toggleSave = async (recipe: ExploreRecipe) => {
     try {
@@ -545,7 +556,7 @@ export default function ExploreRecipesScreen() {
           ) : !hasMore && recipes.length > 0 ? (
             <View style={styles.endCard}>
               <Text style={[styles.endCardTitle, { fontFamily: fontBold, fontSize: 15 * finalScale }]}>
-                You've seen it all
+                You have seen it all
               </Text>
               <Text style={[styles.endCardText, { fontFamily: fontRegular, fontSize: 13 * finalScale }]}>
                 Pull down to refresh for a fresh pass.
@@ -577,8 +588,8 @@ export default function ExploreRecipesScreen() {
             item={item}
             busy={busyId === item.id}
             finalScale={finalScale}
-            fontRegular={fontRegular}
-            fontBold={fontBold}
+            fontRegular={fontRegular ?? ""}
+            fontBold={fontBold ?? ""}
             minHeight={tt.minHeight}
             onToggleSave={() => toggleSave(item)}
             onOpen={() => router.push(`/recipe?id=${item.id}&public=1`)}
