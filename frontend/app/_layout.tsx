@@ -13,6 +13,7 @@ import SplashScreen from "@/components/splash-screen";
 import CopilotTooltip from "@/components/tutorial/CopilotTooltip";
 import { TutorialProvider } from "@/services/tutorialContext";
 import { CopilotProvider } from "react-native-copilot";
+import GlobalTtsControl from "@/components/GlobalTtsControl";
 
 const LOGIN_ROUTE = "/login";
 const TABS_ROUTE = "/(tabs)";
@@ -217,6 +218,8 @@ function RootContent() {
               reduceMotion={settings.reduceMotion}
             />
           )}
+          {/* Global TTS control */}
+          <GlobalTtsControl />
         </TutorialProvider>
       </CopilotProvider>
     </ThemeProvider>

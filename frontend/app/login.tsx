@@ -1,14 +1,17 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { login } from "@/services/login";
 import { useFontStyle, useTouchTarget } from "@/services/settingsContext";
+import { tts } from "@/services/tts";
+import { useSettings } from "@/services/settingsContext";
 
 export default function LoginScreen() {
   const router = useRouter();
   const { scale, fontRegular, fontBold } = useFontStyle();
   const tt = useTouchTarget();
   const finalScale = scale * tt.fontBoost;
+  const { settings, loaded } = useSettings();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,11 +19,17 @@ export default function LoginScreen() {
 
   const onGetStarted = async () => {
     if (!canSubmit) { Alert.alert("Missing info", "Please enter your email and password."); return; }
+    if (!canSubmit) tts.say("Please enter your email and password.", { rate: settings.ttsRate, pitch: settings.ttsPitch });
     try {
       await login(email.trim().toLowerCase(), password);
       router.replace("/(tabs)");
     } catch (e: any) { Alert.alert("Login failed", e.message || "Invalid email or password"); }
   };
+
+  useEffect(() => {
+    if (!loaded) return;
+    tts.autoSay("Sign in screen. Enter your email and password to sign in.", { rate: settings.ttsRate, pitch: settings.ttsPitch });
+  }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -34,25 +43,25 @@ export default function LoginScreen() {
             <TextInput value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor="#6F6F6F"
               autoCapitalize="none" keyboardType="email-address"
               style={[styles.input, { fontFamily: fontRegular, fontSize: 16 * finalScale, minHeight: tt.minHeight }]}
-              accessibilityLabel="Email" />
+              accessibilityLabel="Email" onFocus={() => tts.say("Email field", { rate: settings.ttsRate, pitch: settings.ttsPitch, interrupt: false })} />
 
             <TextInput value={password} onChangeText={setPassword} placeholder="Password" placeholderTextColor="#6F6F6F"
               secureTextEntry
               style={[styles.input, { fontFamily: fontRegular, fontSize: 16 * finalScale, minHeight: tt.minHeight }]}
-              accessibilityLabel="Password" />
+              accessibilityLabel="Password" onFocus={() => tts.say("Password field", { rate: settings.ttsRate, pitch: settings.ttsPitch, interrupt: false })} />
 
-            <Pressable onPress={() => Alert.alert("Forgot Password", "Password reset flow coming soon.")}
+            <Pressable onPress={() => { tts.say("Password reset flow coming soon."); Alert.alert("Forgot Password", "Password reset flow coming soon."); }}
               style={[styles.forgotWrap, { minHeight: tt.minHeight, justifyContent: "center" }]}>
               <Text style={[styles.forgotText, { fontFamily: fontRegular, fontSize: 12 * finalScale }]}>Forgot Password?</Text>
             </Pressable>
 
-            <Pressable onPress={onGetStarted} disabled={!canSubmit}
+            <Pressable onPress={() => { tts.say("Get started", { rate: settings.ttsRate, pitch: settings.ttsPitch }); onGetStarted(); }} disabled={!canSubmit}
               style={({ pressed }) => [styles.cta, { minHeight: tt.minHeight, paddingHorizontal: tt.paddingHorizontal, borderRadius: tt.borderRadius }, pressed && styles.ctaPressed, !canSubmit && styles.ctaDisabled]}
               accessibilityRole="button" accessibilityLabel="Get started">
               <Text style={[styles.ctaText, { fontFamily: fontBold, fontSize: 16 * finalScale }]}>Get Started</Text>
             </Pressable>
 
-            <Pressable onPress={() => router.push("/register")} style={[styles.backWrap, { minHeight: tt.minHeight, justifyContent: "center" }]}>
+            <Pressable onPress={() => { tts.say("Create an account", { rate: settings.ttsRate, pitch: settings.ttsPitch }); router.push("/register"); }} style={[styles.backWrap, { minHeight: tt.minHeight, justifyContent: "center" }]}> 
               <Text style={[styles.backText, { fontFamily: fontBold, fontSize: 14 * finalScale }]}>Create an account</Text>
             </Pressable>
           </View>

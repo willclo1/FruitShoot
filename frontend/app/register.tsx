@@ -1,14 +1,17 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { register } from "@/services/register";
 import { useFontStyle, useTouchTarget } from "@/services/settingsContext";
+import { tts } from "@/services/tts";
+import { useSettings } from "@/services/settingsContext";
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { scale, fontRegular, fontBold } = useFontStyle();
   const tt = useTouchTarget();
   const finalScale = scale * tt.fontBoost;
+  const { settings, loaded } = useSettings();
 
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -22,18 +25,28 @@ export default function RegisterScreen() {
 
   const onCreateAccount = async () => {
     if (!canSubmit) { Alert.alert("Missing info", "Please fill out all fields."); return; }
+    if (!canSubmit) tts.say("Please fill out all fields.", { rate: settings.ttsRate, pitch: settings.ttsPitch });
     const normalizedEmail = email.trim().toLowerCase();
     const trimmedUsername = username.trim();
     const trimmedPassword = password.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) { Alert.alert("Invalid email", "Please enter a valid email address."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) tts.say("Please enter a valid email address.", { rate: settings.ttsRate, pitch: settings.ttsPitch });
     if (trimmedUsername.length < 3) { Alert.alert("Invalid username", "Username must be at least 3 characters."); return; }
+    if (trimmedUsername.length < 3) tts.say("Username must be at least 3 characters.", { rate: settings.ttsRate, pitch: settings.ttsPitch });
     if (trimmedPassword.length < 8) { Alert.alert("Weak password", "Password must be at least 8 characters."); return; }
+    if (trimmedPassword.length < 8) tts.say("Password must be at least 8 characters.", { rate: settings.ttsRate, pitch: settings.ttsPitch });
     if (password !== confirmPassword) { Alert.alert("Passwords don't match", "Please re-enter your password."); return; }
+    if (password !== confirmPassword) tts.say("Passwords do not match. Please re-enter your password.", { rate: settings.ttsRate, pitch: settings.ttsPitch });
     try {
       await register(normalizedEmail, password, trimmedUsername);
       router.replace("/(tabs)");
     } catch (e: any) { Alert.alert("Register failed", e.message || "Could not create account"); }
   };
+
+  useEffect(() => {
+    if (!loaded) return;
+    tts.autoSay("Create account screen. Enter email, username, and password to create an account.", { rate: settings.ttsRate, pitch: settings.ttsPitch });
+  }, [loaded, settings.ttsEnabled, settings.ttsMode, settings.ttsRate, settings.ttsPitch]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -54,16 +67,16 @@ export default function RegisterScreen() {
                 placeholder={placeholder} placeholderTextColor="#6F6F6F"
                 autoCapitalize="none" keyboardType={keyboard ?? "default"} secureTextEntry={secure}
                 style={[styles.input, { fontFamily: fontRegular, fontSize: 16 * finalScale, minHeight: tt.minHeight }]}
-                accessibilityLabel={label} />
+                accessibilityLabel={label} onFocus={() => tts.say(label, { rate: settings.ttsRate, pitch: settings.ttsPitch, interrupt: false })} />
             ))}
 
-            <Pressable onPress={onCreateAccount} disabled={!canSubmit}
+            <Pressable onPress={() => { tts.say("Create account", { rate: settings.ttsRate, pitch: settings.ttsPitch }); onCreateAccount(); }} disabled={!canSubmit}
               style={({ pressed }) => [styles.cta, { minHeight: tt.minHeight, paddingHorizontal: tt.paddingHorizontal, borderRadius: tt.borderRadius }, pressed && styles.ctaPressed, !canSubmit && styles.ctaDisabled]}
               accessibilityRole="button" accessibilityLabel="Create account">
               <Text style={[styles.ctaText, { fontFamily: fontBold, fontSize: 16 * finalScale }]}>Create Account</Text>
             </Pressable>
 
-            <Pressable onPress={() => router.replace("/login")} style={[styles.backWrap, { minHeight: tt.minHeight, justifyContent: "center" }]}>
+            <Pressable onPress={() => { tts.say("Back to sign in", { rate: settings.ttsRate, pitch: settings.ttsPitch }); router.replace("/login"); }} style={[styles.backWrap, { minHeight: tt.minHeight, justifyContent: "center" }]}>
               <Text style={[styles.backText, { fontFamily: fontBold, fontSize: 14 * finalScale }]}>Back to Sign in</Text>
             </Pressable>
           </View>
