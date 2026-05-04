@@ -21,7 +21,7 @@ const BG = "#F6F3EE";
 
 
 const RIPENESS_LABELS = ["Ripe", "Rotten", "N/A", "Underripe"] as const;
-const FRUIT_LABELS = ["Apple", "Banana", "Strawberry", "Non-Fruit"] as const;
+const FRUIT_LABELS = ["Apple", "Banana", "Strawberry", "Other/Unsupported Fruit"] as const;
 type RipenessIndex = 0 | 1 | 2 | 3;
 type FruitIndex = 0 | 1 | 2 | 3;
 
